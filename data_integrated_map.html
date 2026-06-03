@@ -706,7 +706,7 @@
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">SEOUL</div>
-      <div class="brand-title">Seoul<br>Safety Explorer</div>
+      <div class="brand-title">Seoul<br>Crime Statistics</div>
       <div class="brand-subtitle">Crime Statistics Dashboard</div>
     </div>
 
@@ -775,6 +775,14 @@
           <span id="legendMin">—</span>
           <div class="gradient-bar crime" id="gradientBar"></div>
           <span id="legendMax">—</span>
+        </div>
+        <div id="formulaTooltipWrap" style="position:relative; cursor:pointer; display:flex; align-items:center;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--text-tertiary); color:white; font-size:11px; font-weight:700; font-family:var(--font-body); line-height:1; flex-shrink:0;">i</span>
+          <div id="formulaTooltipText" style="visibility:hidden; opacity:0; position:absolute; right:0; top:calc(100% + 10px); width:260px; background:#2c3e50; color:#fff; border-radius:8px; padding:14px; z-index:999; font-size:11px; line-height:1.6; box-shadow:0 4px 14px rgba(0,0,0,0.3); transition:opacity 0.2s; font-family:var(--font-body); letter-spacing:0; text-transform:none; pointer-events:none;">
+          <div id="formulaTitle" style="color:#60a5fa; font-weight:700; font-size:12px; margin-bottom:8px;">[Crime Rate Formula]</div>
+          <div id="formulaMain" style="font-weight:700; font-size:12px; margin-bottom:8px; line-height:1.5;">Crime Rate = (Total incidents /<br>District population) × 100,000</div>
+          <div id="formulaSub" style="color:#94a3b8; font-size:10.5px; line-height:1.6;">* Shows the number of crimes per 100,000<br>people to compare districts fairly.</div>  
+          </div>
         </div>
       </div>         
     </div>
@@ -1506,6 +1514,29 @@ loadAllData();
       wrap.addEventListener('mouseenter', () => { tip.style.visibility = 'visible'; tip.style.opacity = '1'; });
       wrap.addEventListener('mouseleave', () => { tip.style.visibility = 'hidden'; tip.style.opacity = '0'; });
     }
+    const formulaWrap = document.getElementById('formulaTooltipWrap');
+    const formulaTip = document.getElementById('formulaTooltipText');
+    if (formulaWrap && formulaTip) {
+      formulaWrap.addEventListener('mouseenter', () => { formulaTip.style.visibility = 'visible'; formulaTip.style.opacity = '1'; });
+      formulaWrap.addEventListener('mouseleave', () => { formulaTip.style.visibility = 'hidden'; formulaTip.style.opacity = '0'; });
+    }
+    document.getElementById('metricToggle').addEventListener('click', e => {
+      if (e.target.tagName !== 'BUTTON') return;
+      const metric = e.target.dataset.metric;
+      const title = document.getElementById('formulaTitle');
+      const main = document.getElementById('formulaMain');
+      const sub = document.getElementById('formulaSub');
+      if (!title) return;
+      if (metric === 'arrest') {
+        title.textContent = '[Arrest Rate Formula]';
+        main.innerHTML = 'Arrest Rate = (Arrests /<br>Total incidents) × 100';
+        sub.innerHTML = '* Shows the percentage of crimes<br>that resulted in an arrest.';
+      } else {
+        title.textContent = '[Crime Rate Formula]';
+        main.innerHTML = 'Crime Rate = (Total incidents /<br>District population) × 100,000';
+        sub.innerHTML = '* Shows the number of crimes per 100,000<br>people to compare districts fairly.';
+      }
+    });
   });
 </script>
 <script src="address_marker_gayoung.js"></script>
