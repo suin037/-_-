@@ -433,16 +433,13 @@
       renderSingleTrendChart('singleTrendSvg', guA);
 
       // Wire up single-panel layer toggles
-      // CCTV button: toggles whether hover tooltip shows CCTV info
-      // Police button: toggles police marker visibility (requires map re-render)
       document.getElementById('singleLayerToggles').addEventListener('click', e => {
         const btn = e.target.closest('.mini-layer-btn');
         if (!btn) return;
         const layer = btn.dataset.layer;
         miniMapLayers[layer] = !miniMapLayers[layer];
         btn.classList.toggle('active', miniMapLayers[layer]);
-        // Only police layer requires a re-render; CCTV is tooltip-only
-        if (layer === 'police') renderMiniMap2('singleMapSvg', guA, 'a', true);
+        renderMiniMap2('singleMapSvg', guA, 'a', true);
       });
 
     } else if (guA && guB) {
@@ -561,17 +558,14 @@
       renderTwoScatterChart(guA, guB, yr);
 
       // Wire up two-panel layer toggles
-      // CCTV button: toggles hover tooltip; Police button: toggles pin visibility
       document.getElementById('twoLayerToggles').addEventListener('click', e => {
         const btn = e.target.closest('.mini-layer-btn');
         if (!btn) return;
         const layer = btn.dataset.layer;
         miniMapLayers[layer] = !miniMapLayers[layer];
         btn.classList.toggle('active', miniMapLayers[layer]);
-        if (layer === 'police') {
-          renderMiniMap2('twoMapSvgA', guA, 'a');
-          renderMiniMap2('twoMapSvgB', guB, 'b');
-        }
+        renderMiniMap2('twoMapSvgA', guA, 'a');
+        renderMiniMap2('twoMapSvgB', guB, 'b');
       });
 
       // wire up filter events
@@ -631,7 +625,18 @@
     svg += `</g>`;
     svg += `<path d="${guPath}" fill="none" stroke="${outerStroke}" stroke-width="${3.5*scale}" stroke-linejoin="round"/>`;
 
-    // CCTV info is shown via hover tooltip only — no circles drawn to avoid overflowing dong boundaries
+    // CCTV density circles — size = cameras per km² ratio, not raw count
+    if (miniMapLayers.cctv && state.cctvData && state.cctvData[guName]) {
+      const maxR = state.cctvMaxRatio || 520;
+      dongs.forEach(dong => {
+        const key = Object.keys(state.cctvData[guName]).find(k => dong.name===k || (typeof normalizeDongName==='function' && normalizeDongName(dong.name)===k));
+        const info2 = key ? state.cctvData[guName][key] : null;
+        if (info2 && info2.ratio > 0) {
+          const r = (8 + (info2.ratio / maxR) * 42) * scale;
+          svg += `<circle cx="${dong.cx}" cy="${dong.cy}" r="${r}" fill="#a78bfa" fill-opacity=".38" stroke="#7c3aed" stroke-width="${1.3*scale}" pointer-events="none"/>`;
+        }
+      });
+    }
 
     // Dong name labels
     dongs.forEach(dong => {
@@ -698,11 +703,10 @@
         el.addEventListener('mouseover', () => {
           const count = parseInt(el.dataset.cctvCount) || 0;
           const ratio = el.dataset.cctvRatio || '0';
-          const cctvLine = miniMapLayers.cctv
-            ? `CCTV: ${count > 0 ? count.toLocaleString() + ' cameras' : 'No data'}<br>Density: ${ratio} / km²`
-            : '';
           tip.innerHTML =
-            `<div style="font-weight:700;margin-bottom:2px">${el.dataset.dong}</div>` + cctvLine;
+            `<div style="font-weight:700;margin-bottom:2px">${el.dataset.dong}</div>` +
+            `CCTV: ${count > 0 ? count.toLocaleString() + ' cameras' : 'No data'}<br>` +
+            `Density: ${ratio} / km²`;
           tip.style.display = 'block';
         });
         el.addEventListener('mousemove', e => {
