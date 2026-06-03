@@ -39,11 +39,11 @@ function showTop5Chart(selectedYear) {
     let chartHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0 10px 0;">
             <h3 style="margin: 0; color: var(--text-primary); font-size: 14px; font-weight: 700;">
-                🛡️ ${selectedYear}년 안전 TOP 5
+                🛡️ ${selectedYear} Safety TOP 5
             </h3>
             
             <div class="suin-tooltip" style="position: relative; cursor: pointer; font-size: 11px; color: var(--text-secondary); text-decoration: underline;">
-                점수 계산식 ℹ️
+                Score formula ℹ️
                 <div class="suin-tooltip-text" style="
                     visibility: hidden;
                     width: 210px;
@@ -62,7 +62,7 @@ function showTop5Chart(selectedYear) {
                     line-height: 1.4;
                     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
                 ">
-                    <strong>[종합 안전 점수 계산식]</strong><br>
+                    <strong>[Safety score formula]</strong><br>
                     Safety Score = (0.7 × Normalized Crime Score + 0.3 × Normalized Arrest Score) × 100
                 </div>
             </div>
@@ -74,15 +74,15 @@ function showTop5Chart(selectedYear) {
 
     currentRankList.forEach((item) => {
         chartHTML += `
-            <div style="display: flex; align-items: center; font-family: 'Malgun Gothic', sans-serif;">
+            <div style="display: flex; align-items: center; font-family: var(--font-body);">
                 <div style="width: 65px; font-size: 12px; font-weight: bold; color: var(--text-primary);">
-                    ${item.rank}위 ${item.name}
+                    #${item.rank} ${item.name}
                 </div>
                 
                 <div style="flex-grow: 1; background: rgba(0,0,0,0.05); height: 20px; border-radius: 10px; overflow: hidden; margin-left: 8px; position: relative;">
                     <div style="width: ${item.score}%; background: linear-gradient(90deg, #3498db, #2ecc71); height: 100%; border-radius: 10px; transition: width 0.4s ease-in-out; display: flex; align-items: center; justify-content: flex-end;">
                         <span style="color: white; font-size: 10px; font-weight: bold; margin-right: 8px; white-space: nowrap;">
-                            ${item.score}점
+                            ${item.score}
                         </span>
                     </div>
                 </div>
