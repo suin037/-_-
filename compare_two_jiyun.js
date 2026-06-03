@@ -407,10 +407,10 @@
           <div class="two-chart-section">
             <h3>District Boundary & Safety Infrastructure</h3>
             <div class="mini-layer-toggles" id="singleLayerToggles">
-              <button class="mini-layer-btn active" data-layer="cctv">
+              <button class="mini-layer-btn ${miniMapLayers.cctv ? 'active' : ''}" data-layer="cctv">
                 <span class="mini-layer-dot cctv"></span>CCTV density
               </button>
-              <button class="mini-layer-btn active" data-layer="police">
+              <button class="mini-layer-btn ${miniMapLayers.police ? 'active' : ''}" data-layer="police">
                 <span class="mini-layer-dot police"></span>Police stations
               </button>
             </div>
@@ -461,10 +461,10 @@
           <div class="two-chart-section">
             <h3>Safety Infrastructure Distribution</h3>
             <div class="mini-layer-toggles" id="twoLayerToggles">
-              <button class="mini-layer-btn active" data-layer="cctv">
+              <button class="mini-layer-btn ${miniMapLayers.cctv ? 'active' : ''}" data-layer="cctv">
                 <span class="mini-layer-dot cctv"></span>CCTV density
               </button>
-              <button class="mini-layer-btn active" data-layer="police">
+              <button class="mini-layer-btn ${miniMapLayers.police ? 'active' : ''}" data-layer="police">
                 <span class="mini-layer-dot police"></span>Police stations
               </button>
             </div>
