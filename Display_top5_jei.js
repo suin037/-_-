@@ -116,7 +116,7 @@ waitForData(() => {
         const rankBlock = document.createElement('div');
         rankBlock.id = 'sidebar-rank';
         rankBlock.className = 'control-block';
-        sidebar.appendChild(rankBlock);
+        document.getElementById('sidebar-rank').appendChild(rankBlock);
     }
 
     // ⭐ 처음 켰을 때는 데이터의 가장 최신 연도인 2024년을 기본값으로 띄우기

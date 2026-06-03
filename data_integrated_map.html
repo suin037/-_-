@@ -206,7 +206,11 @@
 /* ===== Scatter Section ===== */
 .scatter-section {
   margin-top: 24px;
-  padding: 24px 0;
+  padding: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .scatter-section-header {
@@ -703,6 +707,27 @@
       <div class="brand-subtitle">Crime Statistics Dashboard</div>
     </div>
 
+    <!-- 1. Location search -->
+    <div class="control-block">
+      <div class="control-label">
+        <span>Location search (address)</span>
+        <div class="addr-tooltip-wrap" style="position: relative; cursor: pointer;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--text-tertiary); color: white; font-size: 10px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1; letter-spacing: 0;">!</span>
+          <div class="addr-tooltip-text" style="visibility: hidden; opacity: 0; position: absolute; right: 0; bottom: 125%; width: 200px; background: #2c3e50; color: #fff; text-align: left; border-radius: 6px; padding: 10px; z-index: 999; font-size: 11px; line-height: 1.5; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: opacity 0.2s; font-family: 'IBM Plex Sans KR', sans-serif; text-transform: none; letter-spacing: 0;">
+            <strong>도로명 주소로 입력해주세요</strong><br>
+            ex) 연세로 50<br>
+            ex) 서울특별시 서대문구 연세로 50
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 4px; width: 100%;">
+        <input type="text" id="addressInput" placeholder="District or neighborhood name..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: 'IBM Plex Sans KR'; font-size: 12px; min-width: 0;">
+        <button id="addressSearchBtn" style="padding: 8px 10px; background: var(--text-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Search</button>
+        <button id="resetBtn" style="padding: 8px 10px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Reset</button>
+      </div>
+    </div>
+
+    <!-- 2. Year -->
     <div class="control-block">
       <div class="control-label">
         <span>Year</span>
@@ -714,6 +739,7 @@
       </div>
     </div>
 
+    <!-- 3. Metric -->
     <div class="control-block">
       <div class="control-label"><span>Metric</span></div>
       <div class="metric-toggle" id="metricToggle">
@@ -722,57 +748,17 @@
       </div>
     </div>
 
-    <div class="control-block">
-  <div class="control-label">
-    <span>Location search (address)</span>
-    <div class="addr-tooltip-wrap" style="position: relative; cursor: pointer;">
-      <span style="
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 16px; height: 16px; border-radius: 50%;
-        background: var(--text-tertiary); color: white;
-        font-size: 10px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif;
-        line-height: 1; letter-spacing: 0;
-      ">!</span>
-      <div class="addr-tooltip-text" style="
-        visibility: hidden; opacity: 0;
-        position: absolute; right: 0; bottom: 125%;
-        width: 200px;
-        background: #2c3e50; color: #fff;
-        text-align: left; border-radius: 6px;
-        padding: 10px; z-index: 999;
-        font-size: 11px; line-height: 1.5;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        transition: opacity 0.2s;
-        font-family: 'IBM Plex Sans KR', sans-serif;
-        text-transform: none; letter-spacing: 0;
-      ">
-        <strong>도로명 주소로 입력해주세요</strong><br>
-        ex) 연세로 50<br>
-        ex) 서울특별시 서대문구 연세로 50
-      </div>
-    </div>
-  </div>
-  <div style="display: flex; gap: 4px; width: 100%;">
-    <input type="text" id="addressInput" placeholder="District or neighborhood name..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: 'IBM Plex Sans KR'; font-size: 12px; min-width: 0;">
-    <button id="addressSearchBtn" style="padding: 8px 10px; background: var(--text-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Search</button>
-    <button id="resetBtn" style="padding: 8px 10px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Reset</button>
-  </div>
-</div>
+    <!-- 4. 범죄유형필터 (JS가 여기에 삽입) -->
+    <div id="sidebar-crime-filter"></div>
 
-    <div class="control-block">
-      <div class="control-label"><span>Seoul average</span></div>
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-label">Crime rate</div>
-          <div class="stat-value crime" id="totalCrime">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Arrest rate</div>
-          <div class="stat-value arrest" id="totalArrest">—</div>
-        </div>
-      </div>
-    </div>
+    <!-- 5. District Analysis (JS가 여기에 삽입) -->
+    <div id="sidebar-district-analysis"></div>
+
+    <!-- 6. 안전 TOP5 (JS가 여기에 삽입) -->
+    <div id="sidebar-rank"></div>
+
   </aside>
+
 
   <main class="main">
     <div class="page-header">
@@ -1116,9 +1102,7 @@ function renderStats() {
     });
   }
 
-  document.getElementById('totalCrime').textContent = count > 0 ? Math.round(totalCrime / count) : '—';
-  document.getElementById('totalArrest').textContent = count > 0 ? Math.round(totalArrest / count) : '—';
-
+ 
   document.getElementById('titleYear').textContent = state.year;
   document.getElementById('titleMetric').textContent = state.metric === 'crime' ? 'Crime rate' : 'Arrest rate';
   document.getElementById('gradientBar').className = `gradient-bar ${state.metric}`;

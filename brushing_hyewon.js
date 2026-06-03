@@ -103,7 +103,16 @@
       </div>
       
       <div id="all-districts-wrapper">
-         <svg id="svgAll" width="100%" height="280" viewBox="0 0 800 280"></svg>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:8px;">
+          <div>
+            <div style="font-size:12px; font-weight:700; color:#e63946; margin-bottom:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.08em;">▌ CRIME RATE (per 100k)</div>
+            <svg id="svgCrime" width="100%" height="520" viewBox="0 0 700 520"></svg>
+          </div>
+            <div>
+            <div style="font-size:12px; font-weight:700; color:#06a77d; margin-bottom:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.08em;">▌ ARREST RATE (%)</div>
+            <svg id="svgArrest" width="100%" height="520" viewBox="0 0 700 520"></svg>
+          </div>
+        </div>
       </div>
       
       <div class="chart-grid" id="comp-grid" style="display: none;">
@@ -121,7 +130,9 @@
         </div>
       </div>
     `;
-    mapArea.parentNode.insertBefore(compDiv, mapArea.nextSibling);
+    // 변경 후 (막대그래프를 scatter-section 다음에 삽입)
+    const scatterSection = document.querySelector('.scatter-section');
+    mapArea.parentNode.insertBefore(compDiv, scatterSection.nextSibling);
   }
 
   function setupPaintingEvents() {
@@ -242,148 +253,138 @@
 
   // 📊 0 selected: 25-district crime/arrest-rate dual ranking chart
   function drawAllDistrictsChart() {
-    const svg = d3.select('#svgAll');
-    const width = 800, height = 280;
-    const margin = { top: 30, right: 40, bottom: 50, left: 40 }; 
     const year = state.year;
-    
-    const activeMetric = (state.metric === 'arrest' || state.indicator === 'arrest') ? 'arrest' : 'crime';
+    const allGus = Object.keys(SEOUL_DATA.districts);
+
+    let barData = allGus.map(gu => ({
+      gu,
+      crime: state.crimeData[gu]?.[year]?.crime || 0,
+      arrest: state.crimeData[gu]?.[year]?.arrest || 0
+    }));
 
     const compTitle = document.getElementById('comp-title');
     const subtitle = document.getElementById('comp-subtitle');
-    compTitle.textContent = `Safety Ranking Across Seoul’s 25 Districts`;
-    subtitle.textContent = `(${year}) ${activeMetric === 'crime' ? '🟥 Crime Rate' : '🟩 Arrest Rate'} sorted in descending order.`;
+    compTitle.textContent = `Safety Ranking Across Seoul's 25 Districts`;
+    subtitle.textContent = `(${year})  ▌ Crime Rate  vs  ▌ Arrest Rate — dashed line = average`;
 
-    const allGus = Object.keys(SEOUL_DATA.districts);
-    let barData = allGus.map(gu => {
-      const crimeVal = state.crimeData[gu]?.[year]?.crime || 0;
-      const arrestVal = state.crimeData[gu]?.[year]?.arrest || 0;
-      return { gu, crime: crimeVal, arrest: arrestVal };
-    });
-    
-    barData.sort((a, b) => b[activeMetric] - a[activeMetric]);
+    const avgCrime  = d3.mean(barData, d => d.crime);
+    const avgArrest = d3.mean(barData, d => d.arrest);
 
-    if (svg.select('.y-axis-left').empty()) {
-      svg.append('g').attr('class', 'y-axis-left').attr('transform', `translate(${margin.left}, 0)`);
-      svg.append('g').attr('class', 'y-axis-right').attr('transform', `translate(${width - margin.right}, 0)`);
-      svg.append('g').attr('class', 'x-axis').attr('transform', `translate(0, ${height - margin.bottom})`);
-      svg.append('g').attr('class', 'bars-container');
+    // ── 공통 설정 ──────────────────────────────────────────
+    const W = 800, H = 520;
+    const margin = { top: 36, right: 50, bottom: 120, left: 50 };
+    const innerW = W - margin.left - margin.right;
+    const innerH = H - margin.top  - margin.bottom;
+    const t = d3.transition().duration(600).ease(d3.easeCubicOut);
+
+    // ── 단일 차트 그리기 헬퍼 ──────────────────────────────
+    function drawSingle(svgId, data, valueKey, color, avgVal, label) {
+      const svg = d3.select('#' + svgId);
+      svg.selectAll('*').remove();
+
+      const sorted = [...data].sort((a, b) => b[valueKey] - a[valueKey]);
+
+      const xScale = d3.scaleBand()
+        .domain(sorted.map(d => d.gu))
+        .range([margin.left, W - margin.right])
+        .padding(0.28);
+
+      const maxVal = d3.max(sorted, d => d[valueKey]) || 1;
+      const yScale = d3.scaleLinear()
+        .domain([0, maxVal * 1.15])
+        .range([H - margin.bottom, margin.top]);
+
+      const avgY = yScale(avgVal);
+
+      // 격자선
+      svg.selectAll('.grid-line')
+        .data(yScale.ticks(5))
+        .enter().append('line')
+        .attr('x1', margin.left).attr('x2', W - margin.right)
+        .attr('y1', d => yScale(d)).attr('y2', d => yScale(d))
+        .attr('stroke', 'var(--border)')
+        .attr('stroke-dasharray', '3,3')
+        .attr('stroke-width', 1);
+
+      // Y 축 눈금
+      svg.selectAll('.y-tick')
+        .data(yScale.ticks(5))
+        .enter().append('text')
+        .attr('x', margin.left - 4)
+        .attr('y', d => yScale(d) + 4)
+        .attr('text-anchor', 'end')
+        .attr('font-size', '12px')
+        .attr('fill', 'var(--text-tertiary)')
+        .text(d => valueKey === 'arrest' ? d.toFixed(0) + '%' : Math.round(d));
+
+      // 막대
+      svg.selectAll('.bar')
+        .data(sorted)
+        .enter().append('rect')
+        .attr('class', 'bar')
+        .attr('x', d => xScale(d.gu))
+        .attr('width', xScale.bandwidth())
+        .attr('rx', 3)
+        .attr('fill', color)
+        .attr('opacity', 0.85)
+        .attr('y', H - margin.bottom)
+        .attr('height', 0)
+        .transition(t)
+        .attr('y', d => yScale(d[valueKey]))
+        .attr('height', d => Math.max(0, (H - margin.bottom) - yScale(d[valueKey])));
+
+      // 평균선 (점선)
+      svg.append('line')
+        .attr('x1', margin.left).attr('x2', W - margin.right)
+        .attr('y1', avgY).attr('y2', avgY)
+        .attr('stroke', color)
+        .attr('stroke-width', 1.8)
+        .attr('stroke-dasharray', '6,4')
+        .attr('opacity', 0)
+        .transition(t)
+        .attr('opacity', 1);
+
+      // 평균선 레이블
+      svg.append('text')
+        .attr('x', W - margin.right + 2)
+        .attr('y', avgY + 4)
+        .attr('font-size', '13px')
+        .attr('font-weight', '700')
+        .attr('fill', color)
+        .attr('opacity', 0)
+        .text('avg')
+        .transition(t)
+        .attr('opacity', 1);
+
+      // 평균값 텍스트
+      svg.append('text')
+        .attr('x', margin.left + 4)
+        .attr('y', avgY - 5)
+        .attr('font-size', '9px')
+        .attr('fill', color)
+        .attr('opacity', 0)
+        .text(valueKey === 'arrest' ? avgVal.toFixed(1) + '%' : Math.round(avgVal))
+        .transition(t)
+        .attr('opacity', 1);
+
+      // X 축 구 이름
+      // 변경 후
+      svg.selectAll('.x-label')
+        .data(sorted)
+        .enter().append('text')
+        .attr('class', 'x-label')
+        .attr('x', d => xScale(d.gu) + xScale.bandwidth() / 2)
+        .attr('y', H - margin.bottom + 6)
+        .attr('text-anchor', 'end')
+        .attr('transform', d => `rotate(-55, ${xScale(d.gu) + xScale.bandwidth() / 2}, ${H - margin.bottom + 6})`)
+        .attr('font-size', '13px')
+        .attr('font-weight', '600')
+        .attr('fill', 'var(--text-primary)')
+        .text(d => d.gu);
     }
 
-    const xScale0 = d3.scaleBand().domain(barData.map(d => d.gu)).range([margin.left, width - margin.right]).padding(0.25);
-    const xScale1 = d3.scaleBand().domain(['crime', 'arrest']).range([0, xScale0.bandwidth()]).padding(0.05);
-
-    const maxCrime = d3.max(barData, d => d.crime) || 10;
-    const maxArrest = d3.max(barData, d => d.arrest) || 100;
-
-    const yScaleCrime = d3.scaleLinear().domain([0, maxCrime * 1.1]).range([height - margin.bottom, margin.top]);
-    const yScaleArrest = d3.scaleLinear().domain([0, Math.max(100, maxArrest * 1.1)]).range([height - margin.bottom, margin.top]);
-
-    const t = svg.transition().duration(600).ease(d3.easeCubicOut);
-
-    const yAxisLeft = d3.axisLeft(yScaleCrime).ticks(5).tickSize(-(width - margin.left - margin.right));
-    const leftG = svg.select('.y-axis-left');
-    leftG.transition(t).call(yAxisLeft);
-    leftG.select(".domain").remove();
-    leftG.selectAll(".tick line").attr("stroke", "var(--border)").attr("stroke-dasharray", "4,4");
-    leftG.selectAll(".tick text").attr("fill", "#e63946").attr("font-size", "10px").attr("font-weight", "600");
-
-    if(leftG.select('.left-label').empty()){
-        leftG.append('text').attr('class','left-label')
-         .attr('x', 0).attr('y', margin.top - 10)
-         .attr('fill', '#e63946').attr('font-size', '10px').attr('font-weight', '700')
-         .attr('text-anchor', 'middle')
-         .text('Crime Rate(%)');
-    }
-
-    const yAxisRight = d3.axisRight(yScaleArrest).ticks(5).tickSize(0);
-    const rightG = svg.select('.y-axis-right');
-    rightG.transition(t).call(yAxisRight);
-    rightG.select(".domain").remove();
-    rightG.selectAll(".tick text").attr("fill", "#06a77d").attr("font-size", "10px").attr("font-weight", "600").attr("dx", "4px");
-    
-    if(rightG.select('.right-label').empty()){
-        rightG.append('text').attr('class','right-label')
-         .attr('x', 0).attr('y', margin.top - 10)
-         .attr('fill', '#06a77d').attr('font-size', '10px').attr('font-weight', '700')
-         .attr('text-anchor', 'middle')
-         .text('Arrest Rate(%)');
-    }
-
-    const xAxisG = svg.select('.x-axis');
-    xAxisG.transition(t).call(d3.axisBottom(xScale0).tickSizeOuter(0));
-    xAxisG.select(".domain").remove();
-    xAxisG.selectAll('text')
-      .attr('font-size', '11px')
-      .attr('font-weight', '600')
-      .attr('fill', 'var(--text-primary)')
-      .attr('transform', 'rotate(-30)')
-      .attr('text-anchor', 'end')
-      .attr('dx', '-0.2em')
-      .attr('dy', '0.5em');
-
-    const groups = svg.select('.bars-container').selectAll('.gu-group').data(barData, d => d.gu);
-
-    const groupsEnter = groups.enter().append('g')
-      .attr('class', 'gu-group')
-      .attr('transform', d => `translate(${xScale0(d.gu)},0)`);
-
-    const allGroups = groupsEnter.merge(groups);
-    allGroups.transition(t).attr('transform', d => `translate(${xScale0(d.gu)},0)`);
-
-    // 1️⃣ red bars (crime rate)
-    allGroups.selectAll('.bar-crime')
-      .data(d => [d])
-      .join(
-        enter => enter.append('rect')
-          .attr('class', 'bar-crime')
-          .attr('x', xScale1('crime'))
-          .attr('y', d => yScaleCrime(d.crime)) 
-          .attr('width', xScale1.bandwidth())
-          .attr('height', d => Math.max(0, yScaleCrime(0) - yScaleCrime(d.crime)))
-          .attr('fill', '#e63946')
-          .attr('rx', 2)
-          .attr('stroke', 'none')
-          .style('outline', 'none')
-          .style('opacity', 0),
-        update => update,
-        exit => exit.remove()
-      )
-      .transition(t)
-      .style('opacity', activeMetric === 'crime' ? 1 : 0.3) 
-      .attr('x', xScale1('crime'))
-      .attr('y', d => yScaleCrime(d.crime))
-      .attr('width', xScale1.bandwidth())
-      .attr('height', d => Math.max(0, yScaleCrime(0) - yScaleCrime(d.crime)));
-
-    // 2️⃣ green bars (arrest rate)
-    allGroups.selectAll('.bar-arrest')
-      .data(d => [d])
-      .join(
-        enter => enter.append('rect')
-          .attr('class', 'bar-arrest')
-          .attr('x', xScale1('arrest'))
-          .attr('y', d => yScaleArrest(d.arrest)) 
-          .attr('width', xScale1.bandwidth())
-          .attr('height', d => Math.max(0, yScaleArrest(0) - yScaleArrest(d.arrest)))
-          .attr('fill', '#06a77d')
-          .attr('rx', 2)
-          .attr('stroke', 'none')
-          .style('outline', 'none')
-          .style('opacity', 0),
-        update => update,
-        exit => exit.remove()
-      )
-      .transition(t)
-      .style('opacity', activeMetric === 'arrest' ? 1 : 0.3) 
-      .attr('x', xScale1('arrest'))
-      .attr('y', d => yScaleArrest(d.arrest))
-      .attr('width', xScale1.bandwidth())
-      .attr('height', d => Math.max(0, yScaleArrest(0) - yScaleArrest(d.arrest)));
-
-    allGroups.selectAll('rect').selectAll('title').remove();
-    allGroups.selectAll('.bar-crime').append('title').text(d => `${d.gu} Crime Rate: ${d.crime.toFixed(1)}`);
-    allGroups.selectAll('.bar-arrest').append('title').text(d => `${d.gu} Arrest Rate: ${d.arrest.toFixed(1)}%`);
+    drawSingle('svgCrime',  barData, 'crime',  '#e63946', avgCrime,  'Crime Rate');
+    drawSingle('svgArrest', barData, 'arrest', '#06a77d', avgArrest, 'Arrest Rate');
   }
 
   // 📈 left (1+ selected): line chart 

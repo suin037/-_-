@@ -17,12 +17,13 @@ const crimeFilterState = {
   selectedType: null // null이면 전체(기존 방식), 아니면 'murder','robbery','theft','violence','rape'
 };
 
+// 변경 
 const CRIME_LABEL = {
-  murder: '살인',
-  robbery: '강도',
-  theft: '절도',
-  violence: '폭력',
-  rape: '강간·추행'
+  murder: 'Murder',
+  robbery: 'Robbery',
+  theft: 'Theft',
+  violence: 'Violence',
+  rape: 'Sexual Assault'
 };
 
 // 사이드바에 범죄 유형 필터 UI 추가
@@ -32,24 +33,25 @@ function injectCrimeFilterUI() {
 
   const block = document.createElement('div');
   block.className = 'control-block';
+  // 변경 후
   block.innerHTML = `
-    <div class="control-label">범죄 유형 필터</div>
-    <div id="crimeTypeFilter" style="display:flex; flex-direction:column; gap:8px;">
+    <div class="control-label">Crime Type Filter</div>
+    <div id="crimeTypeFilter" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;">
       <button class="crime-filter-btn active" data-type="all"
-        style="padding:8px 12px; border-radius:8px; border:1.5px solid var(--border);
-        background:var(--bg-tertiary); color:var(--text-primary); cursor:pointer; font-size:13px; text-align:left;">
-        전체
+        style="padding:5px 4px; border-radius:6px; border:1.5px solid var(--border);
+        background:var(--bg-tertiary); color:var(--text-primary); cursor:pointer; font-size:11px; font-weight:600; text-align:center;">
+        All
       </button>
       ${Object.entries(CRIME_LABEL).map(([key, label]) => `
         <button class="crime-filter-btn" data-type="${key}"
-          style="padding:8px 12px; border-radius:8px; border:1.5px solid var(--border);
-          background:var(--bg-tertiary); color:var(--text-primary); cursor:pointer; font-size:13px; text-align:left;">
+          style="padding:5px 4px; border-radius:6px; border:1.5px solid var(--border);
+          background:var(--bg-tertiary); color:var(--text-primary); cursor:pointer; font-size:11px; font-weight:600; text-align:center;">
           ${label}
         </button>
       `).join('')}
     </div>
   `;
-  sidebar.appendChild(block);
+  document.getElementById('sidebar-crime-filter').appendChild(block);
 
   // 버튼 클릭 이벤트
   block.querySelectorAll('.crime-filter-btn').forEach(btn => {

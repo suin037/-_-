@@ -251,7 +251,7 @@
           '<div class="control-label"><span>District Analysis</span></div>' +
           '<button class="compare-two-btn" id="startCompareTwoBtn">🔍 Enable District Detail View</button>' +
           '<div style="font-size:11px;color:var(--text-tertiary);margin-top:6px;line-height:1.5;" id="compareTwoHint">Click a district on the map to open the detail panel on the right.</div>';
-        sb.appendChild(block);
+        document.getElementById('sidebar-district-analysis').appendChild(block);
         document.getElementById('startCompareTwoBtn').addEventListener('click', toggleCompareTwoMode);
       }
     }
