@@ -337,20 +337,13 @@
   };
 
   function resetLeftPanelCharts() {
-    // Reset scatter plot — deselect all districts and re-render cleanly
-    if (typeof window.renderMainScatter === 'function') {
-      // Temporarily clear any drag/brush selections on the scatter
-      if (window.state) {
-        window.state.selectedGu = null;
-        window.state.baseline = null;
-      }
-      window.renderMainScatter();
-    }
-    // Reset the main stacked bar chart (chartSvg)
-    const chartSvg = document.getElementById('chartSvg');
-    if (chartSvg) chartSvg.innerHTML = '';
-    // Also clear brush/drag highlights if brushing_hyewon exposes a reset
-    if (typeof window.resetBrushSelection === 'function') window.resetBrushSelection();
+    // Intentionally a no-op for chart state.
+    //
+    // The right-hand comparison panel must open ON TOP of the main view while
+    // leaving the main-area scatter plot and bar chart exactly as the user left
+    // them — including any hovered, dragged, or brushed analysis state. We
+    // therefore do NOT clear selections or wipe the charts here; the main charts
+    // simply remain rendered in the narrowed main column beside the panel.
   }
 
   function updateLayoutAndRender() {
@@ -368,7 +361,8 @@
       return;
     }
 
-    // Reset left-panel charts to initial state whenever the comparison panel opens
+    // Keep the main-area charts (scatter + bar) in their current analyzed state
+    // while the comparison panel slides in over the narrowed main column.
     resetLeftPanelCharts();
 
     // open panel: add jiyun-active first → add panel-open on next frame
