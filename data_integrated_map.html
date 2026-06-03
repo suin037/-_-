@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>서울시 범죄 통계 시각화</title>
+  <title>Seoul Crime Statistics</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -753,7 +753,7 @@
     </div>
   </div>
   <div style="display: flex; gap: 4px; width: 100%;">
-    <input type="text" id="addressInput" placeholder="서울시 자치구 동..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: 'IBM Plex Sans KR'; font-size: 12px; min-width: 0;">
+    <input type="text" id="addressInput" placeholder="District or neighborhood name..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: 'IBM Plex Sans KR'; font-size: 12px; min-width: 0;">
     <button id="addressSearchBtn" style="padding: 8px 10px; background: var(--text-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Search</button>
     <button id="resetBtn" style="padding: 8px 10px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Reset</button>
   </div>
@@ -783,9 +783,9 @@
 
       <div style="display:flex; align-items:center; gap:12px;">
         <div class="legend-gradient">
-          <span>낮음</span>
+          <span>Low</span>
           <div class="gradient-bar crime" id="gradientBar"></div>
-          <span>높음</span>
+          <span>High</span>
         </div>
       </div>         
     </div>
@@ -1033,8 +1033,8 @@ async function loadAllData() {
     setupEvents();
 
   } catch (err) {
-    console.error("데이터 로드 실패! CSV 파일이 올바른 위치에 있는지 확인하세요.", err);
-    alert("데이터를 불러오지 못했습니다. Live Server 실행 및 data 폴더를 확인해주세요.");
+    console.error("Failed to load data. Check that CSV files are in the correct location.", err);
+    alert("Could not load data. Please run via Live Server and verify the data folder.");
   }
 }
 
@@ -1085,7 +1085,7 @@ function renderMainMap() {
     });
 
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    title.textContent = `${guName} · ${state.metric === 'crime' ? '범죄율' : '검거율'}: ${val.toFixed(1)}`;
+    title.textContent = `${guName} · ${state.metric === 'crime' ? 'Crime rate' : 'Arrest rate'}: ${val.toFixed(1)}`;
     path.appendChild(title);
     mapSvg.appendChild(path);
 
@@ -1145,11 +1145,11 @@ function renderStats() {
   const tooltipTitle = document.getElementById('legendTooltipTitle');
   const tooltipBody = document.getElementById('legendTooltipBody');
   if (tooltipTitle) tooltipTitle.textContent =
-    state.metric === 'crime' ? '[범죄율 계산식]' : '[검거율 계산식]';
+    state.metric === 'crime' ? '[Crime rate formula]' : '[Arrest rate formula]';
   if (tooltipBody) tooltipBody.innerHTML =
     state.metric === 'crime'
-      ? '범죄율 = (발생건수 / 자치구 인구) × 100,000<br>단위: 10만명당 발생건수'
-      : '검거율 = (검거건수 / 발생건수) × 100<br>단위: %';
+      ? 'Crime rate = (incidents / district population) × 100,000<br>Unit: incidents per 100k residents'
+      : 'Arrest rate = (arrests / incidents) × 100<br>Unit: %';
   // 호버 이벤트 (한 번만 등록)
   const tw = document.getElementById('legendTooltipWrap');
   const tt = document.getElementById('legendTooltipText');
@@ -1202,7 +1202,7 @@ function closeModal() {
 function renderModalMap(guName) {
   const guPath = SEOUL_DATA.districts[guName].d;
   const dongs = (typeof DONG_DATA !== 'undefined' && DONG_DATA[guName]) ? DONG_DATA[guName] : [];
-  
+
   const nums = (guPath.match(/-?\d+\.?\d*/g) || []).map(Number);
   const xs = nums.filter((_, i) => i % 2 === 0);
   const ys = nums.filter((_, i) => i % 2 === 1);
@@ -1216,82 +1216,85 @@ function renderModalMap(guName) {
 
   const clipId = `clip-${guName.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
+  // Use dong centroids as the stable fallback center.
+  // Mean of boundary vertices can fall outside concave districts, causing
+  // clampInside to push pins to geometrically wrong positions.
+  const validDongs = dongs.filter(d => d.cx && d.cy);
+  const cenX = validDongs.length > 0
+    ? validDongs.reduce((s, d) => s + d.cx, 0) / validDongs.length
+    : xs.reduce((a, b) => a + b, 0) / xs.length;
+  const cenY = validDongs.length > 0
+    ? validDongs.reduce((s, d) => s + d.cy, 0) / validDongs.length
+    : ys.reduce((a, b) => a + b, 0) / ys.length;
+
+  const poly = xs.map((x, i) => [x, ys[i]]);
+  const inPoly = (qx, qy) => {
+    let ins = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if (((yi > qy) !== (yj > qy)) && (qx < (xj - xi) * (qy - yi) / (yj - yi) + xi)) ins = !ins;
+    }
+    return ins;
+  };
+  const clampInside = (qx, qy) => {
+    let bx = qx, by = qy, bd = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const len2 = dx * dx + dy * dy || 1;
+      let t = ((qx - a[0]) * dx + (qy - a[1]) * dy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const ex = a[0] + t * dx, ey = a[1] + t * dy;
+      const d = (ex - qx) * (ex - qx) + (ey - qy) * (ey - qy);
+      if (d < bd) { bd = d; bx = ex; by = ey; }
+    }
+    const vx = cenX - bx, vy = cenY - by;
+    const vlen = Math.hypot(vx, vy) || 1;
+    return [bx + (vx / vlen) * 20 * scale, by + (vy / vlen) * 20 * scale];
+  };
+
   let svg = `<svg class="gu-detail-svg" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">`;
   svg += `<defs><clipPath id="${clipId}"><path d="${guPath}"/></clipPath></defs>`;
   svg += `<path d="${guPath}" fill="#ffffff" stroke="#4a5568" stroke-width="${2.5 * scale}" stroke-linejoin="round"/>`;
-  
+
+  // Dong fill paths — carry data attributes for the hover tooltip
   svg += `<g clip-path="url(#${clipId})">`;
   dongs.forEach((dong, i) => {
     if (!dong.d) return;
     const fill = i % 2 === 0 ? '#fafbfc' : '#f3f4f6';
     const cctvInfo = (state.cctvData && state.cctvData[guName])
-  ? state.cctvData[guName][normalizeDongName(dong.name)] : null;
-const cctvCount = cctvInfo ? cctvInfo.count : 0;
-const cctvRatio = cctvInfo ? cctvInfo.ratio.toFixed(1) : '0';
-svg += `<path d="${dong.d}" fill="${fill}" stroke="#cbd2d9" stroke-width="${1.0 * scale}" stroke-linejoin="round" data-dong="${dong.name}" data-cctv-count="${cctvCount}" data-cctv-ratio="${cctvRatio}" style="cursor:default"/>`;  });
+      ? state.cctvData[guName][normalizeDongName(dong.name)] : null;
+    const cctvCount = cctvInfo ? cctvInfo.count : 0;
+    const cctvRatio = cctvInfo ? cctvInfo.ratio.toFixed(1) : '0';
+    svg += `<path d="${dong.d}" fill="${fill}" stroke="#cbd2d9" stroke-width="${1.0 * scale}" stroke-linejoin="round" data-dong="${dong.name}" data-cctv-count="${cctvCount}" data-cctv-ratio="${cctvRatio}" style="cursor:default"/>`;
+  });
   svg += `</g>`;
   svg += `<path d="${guPath}" fill="none" stroke="#4a5568" stroke-width="${2.5 * scale}" stroke-linejoin="round"/>`;
 
-  // CCTV 원 & 라벨
+  // CCTV circles (pointer-events:none — hover is captured by the dong paths above)
   dongs.forEach(dong => {
-    svg += `<text x="${dong.cx}" y="${dong.cy - 2 * scale}" text-anchor="middle" font-size="${11 * scale}px" font-weight="600" fill="#1a202c" style="paint-order: stroke; stroke: rgba(255,255,255,0.9); stroke-width: ${3 * scale}px;">${dong.name}</text>`;
-    
+    svg += `<text x="${dong.cx}" y="${dong.cy - 2 * scale}" text-anchor="middle" font-size="${11 * scale}px" font-weight="600" fill="#1a202c" style="paint-order: stroke; stroke: rgba(255,255,255,0.9); stroke-width: ${3 * scale}px; pointer-events:none">${dong.name}</text>`;
+
     if (state.layers.cctv && state.cctvData[guName]) {
       const normalizedName = normalizeDongName(dong.name);
       const cctvInfo = state.cctvData[guName][normalizedName];
       if (cctvInfo && cctvInfo.ratio > 0) {
         cctvRadiusScale.domain([0, state.cctvMaxRatio]);
         const r = cctvRadiusScale(cctvInfo.ratio) * scale;
-        // Circle size = CCTV density (cameras per km²), NOT raw camera count.
-        // Hover shows both the density ratio and the actual number of cameras.
         svg += `<circle cx="${dong.cx}" cy="${dong.cy}" r="${r}" fill="#a78bfa" fill-opacity="0.45" stroke="#7c3aed" stroke-width="${1.2 * scale}" pointer-events="none"/>`;
-        svg += `<text x="${dong.cx}" y="${dong.cy + r + 12 * scale}" text-anchor="middle" font-size="${10 * scale}px" font-weight="700" style="paint-order: stroke; stroke: rgba(255,255,255,0.9); stroke-width: ${3 * scale}px; pointer-events:none" fill="#6d28d9" font-family="'JetBrains Mono', monospace" style="pointer-events:none">${Math.round(cctvInfo.ratio)}</text>`;
+        svg += `<text x="${dong.cx}" y="${dong.cy + r + 12 * scale}" text-anchor="middle" font-size="${10 * scale}px" font-weight="700" fill="#6d28d9" font-family="'JetBrains Mono', monospace" style="pointer-events:none">${Math.round(cctvInfo.ratio)}</text>`;
       }
     }
   });
 
-  // 경찰서 위치 (구 경계 밖으로 투영되면 가장 가까운 경계 안쪽으로 보정)
+  // Police station pins — classic pointed map-pin, blue
   if (state.layers.police && state.policeData) {
-    const poly = xs.map((x, i) => [x, ys[i]]);
-    const validDongs = dongs.filter(d => d.cx && d.cy);
-    const cenX = validDongs.length > 0
-      ? validDongs.reduce((s, d) => s + d.cx, 0) / validDongs.length
-      : xs.reduce((a, b) => a + b, 0) / xs.length;
-    const cenY = validDongs.length > 0
-      ? validDongs.reduce((s, d) => s + d.cy, 0) / validDongs.length
-      : ys.reduce((a, b) => a + b, 0) / ys.length;
-    const inPoly = (qx, qy) => {
-      let ins = false;
-      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
-        if (((yi > qy) !== (yj > qy)) && (qx < (xj - xi) * (qy - yi) / (yj - yi) + xi)) ins = !ins;
-      }
-      return ins;
-    };
-    const clampInside = (qx, qy) => {
-      let bx = qx, by = qy, bd = Infinity;
-      for (let i = 0; i < poly.length; i++) {
-        const a = poly[i], b = poly[(i + 1) % poly.length];
-        const dx = b[0] - a[0], dy = b[1] - a[1];
-        const len2 = dx * dx + dy * dy || 1;
-        let t = ((qx - a[0]) * dx + (qy - a[1]) * dy) / len2;
-        t = Math.max(0, Math.min(1, t));
-        const ex = a[0] + t * dx, ey = a[1] + t * dy;
-        const d = (ex - qx) * (ex - qx) + (ey - qy) * (ey - qy);
-        if (d < bd) { bd = d; bx = ex; by = ey; }
-      }
-      // 경계점에서 중심 쪽으로 살짝 밀어 확실히 내부에 위치시킴
-      const vx = cenX - bx, vy = cenY - by;
-      const vlen = Math.hypot(vx, vy) || 1;
-      return [bx + (vx / vlen) * 20 * scale, by + (vy / vlen) * 20 * scale];
-    };
     state.policeData.forEach(p => {
       if (p.address.includes(guName)) {
         let px = scaleX(p.lng);
         let py = scaleY(p.lat);
         if (!inPoly(px, py)) { const c = clampInside(px, py); px = c[0]; py = c[1]; }
         const s = scale;
-        // Police marker: a teardrop map-pin with a small building/shield glyph.
         svg += `<g transform="translate(${px}, ${py})" style="cursor:help">
           <path d="M0,${3*s} L${-11*s},${-14*s} A${11*s},${11*s} 0 1,1 ${11*s},${-14*s} Z" fill="#2563eb" stroke="white" stroke-width="${1.6*s}" stroke-linejoin="round"/>
           <circle cx="0" cy="${-14*s}" r="${6*s}" fill="white"/>
@@ -1304,6 +1307,8 @@ svg += `<path d="${dong.d}" fill="${fill}" stroke="#cbd2d9" stroke-width="${1.0 
 
   svg += `</svg>`;
   document.getElementById('modalSvgContainer').innerHTML = svg;
+
+  // Wire up dong hover tooltip (show CCTV count for the hovered neighborhood)
   const tooltip = document.getElementById('modalMapTooltip');
   if (tooltip) {
     document.getElementById('modalSvgContainer').querySelectorAll('[data-dong]').forEach(el => {
@@ -1324,7 +1329,7 @@ svg += `<path d="${dong.d}" fill="${fill}" stroke="#cbd2d9" stroke-width="${1.0 
       });
     });
   }
-// 지워도 됨?
+}
 // 6. 하단 전체 차트 / 모달 내 상세 차트 렌더링
 const CRIME_TYPES = ['murder', 'robbery', 'theft', 'violence', 'rape'];
 const CRIME_COLORS = { murder: '#e63946', robbery: '#f97316', theft: '#eab308', violence: '#06a77d', rape: '#3b82f6' };
@@ -1448,7 +1453,7 @@ function drawBarChart(svgEl, W, H, targetGu) {
       };
       
       const title = document.createElementNS(ns, 'title');
-      title.textContent = `${k}: ${val}건`;
+      title.textContent = `${k}: ${val} cases`;
       rect.appendChild(title);
       svgEl.appendChild(rect);
     });
@@ -1500,10 +1505,7 @@ function setupEvents() {
 
 loadAllData();
 </script>
-<div id="modalMapTooltip" style="display:none; position:fixed; background:#1a202c; color:#f8f9fa; pad
-           +ding:8px 12px; border-radius:8px; font-size:12px; pointer-events:none; z-index:9999; line-height:1.7;
-           + box-shadow:0 4px 14px rgba(0,0,0,0.35); font-family:'IBM Plex Sans KR',sans-serif; white-space:nowra
-           +p;"></div>
+<div id="modalMapTooltip" style="display:none; position:fixed; background:#1a202c; color:#f8f9fa; padding:8px 12px; border-radius:8px; font-size:12px; pointer-events:none; z-index:9999; line-height:1.7; box-shadow:0 4px 14px rgba(0,0,0,0.35); font-family:'IBM Plex Sans KR',sans-serif; white-space:nowrap;"></div>
 <script src="crime_filter_suin.js"></script>
 <script src="scatter_map_jiyun.js"></script>
 <script src="compare_two_jiyun.js"></script>
