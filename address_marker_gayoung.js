@@ -29,8 +29,8 @@ const resetBtn = document.getElementById('resetBtn');
 
 // Add event listener for the reset button
 resetBtn.addEventListener('click', () => {
-    savedMarkers.length = 0; // 배열 비우기
-    // Select all marker groups and remove them all at once
+    savedMarkers.length = 0; // empty the array
+    // Remove every marker; the dedicated marker layer itself can stay in place.
     d3.selectAll('.address-marker-group').remove();
     console.log("All markers have been removed.");
 });
@@ -80,16 +80,41 @@ function drawMarkerOnMap(lng, lat, addressName) {
   renderAllMarkers();
 }
 
-function renderAllMarkers() {
-  d3.selectAll('.address-marker-group').remove();
+// Keep a single dedicated layer for all address markers. Because every marker
+// lives inside this one <g> and the layer is always raised to be the LAST child
+// of the SVG, the markers stay on top of every district path. They also opt out
+// of the district dimming effect (opacity / pointer hover blur on .gu-path) so
+// the point always renders sharply, even while hovering over another district.
+function getMarkerLayer() {
   const mapSvg = d3.select('#seoulMap');
+  let layer = mapSvg.select('.address-marker-layer');
+
+  if (layer.empty()) {
+    layer = mapSvg.append('g').attr('class', 'address-marker-layer');
+  }
+
+  // Force the marker layer above all district paths and at full opacity,
+  // shielding it from any inherited dimming/blur state on the map.
+  layer
+    .style('opacity', 1)
+    .style('filter', 'none')
+    .raise();
+
+  return layer;
+}
+
+function renderAllMarkers() {
+  const layer = getMarkerLayer();
+  // Clear only the markers, not the whole layer node, so it stays on top.
+  layer.selectAll('*').remove();
 
   savedMarkers.forEach(({ lng, lat, addressName }) => {
     const x = scaleX(lng);
     const y = scaleY(lat);
 
-    const markerGroup = mapSvg.append('g')
+    const markerGroup = layer.append('g')
       .attr('class', 'address-marker-group')
+      .style('opacity', 1)
       .style('cursor', 'pointer')
       .on('click', function() {
         const idx = savedMarkers.findIndex(m => m.lng === lng && m.lat === lat);
@@ -111,4 +136,6 @@ function renderAllMarkers() {
       .text(addressName);
   });
 
+  // Re-assert top stacking order after (re)drawing the markers.
+  layer.raise();
 }
