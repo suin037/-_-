@@ -19,7 +19,7 @@
 
   const LINE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
   const CRIME_TYPES = ['murder', 'robbery', 'theft', 'violence', 'rape'];
-  const CRIME_LABELS = { murder: 'Murder', robbery: 'Robbery', theft: 'Theft', violence: 'Violence', rape: 'Rape' };
+  const CRIME_LABELS = { murder: 'Murder', robbery: 'Robbery', theft: 'Theft', violence: 'Violence', rape: 'Sexual Assault' };
   const CRIME_COLORS = { murder: '#e63946', robbery: '#f97316', theft: '#eab308', violence: '#06a77d', rape: '#3b82f6' };
 
   let brushedGus = [];
