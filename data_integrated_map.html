@@ -1132,9 +1132,9 @@ function renderStats() {
     const legendMin = document.getElementById('legendMin');
     const legendMax = document.getElementById('legendMax');
     if (legendMin) legendMin.textContent =
-      state.metric === 'crime' ? minVal.toFixed(1) + '%' : minVal.toFixed(1) + '%';
+      state.metric === 'crime' ? minVal.toFixed(1) : minVal.toFixed(1) + '%';
     if (legendMax) legendMax.textContent =
-      state.metric === 'crime' ? maxVal.toFixed(1) + '%' : maxVal.toFixed(1) + '%';
+      state.metric === 'crime' ? maxVal.toFixed(1) : maxVal.toFixed(1) + '%';
   }
   // 툴팁 내용 지표에 따라 변경
   const tooltipTitle = document.getElementById('legendTooltipTitle');
