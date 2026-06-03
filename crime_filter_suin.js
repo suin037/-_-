@@ -53,21 +53,50 @@ function injectCrimeFilterUI() {
   `;
   document.getElementById('sidebar-crime-filter').appendChild(block);
 
-  // 버튼 클릭 이벤트
-  block.querySelectorAll('.crime-filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      block.querySelectorAll('.crime-filter-btn').forEach(b => {
+  // Returns the highlight colors for the active filter button, matching the
+  // current metric: green for arrest-rate view, red for crime-rate view.
+  function activeFilterColors() {
+    return state.metric === 'arrest'
+      ? { bg: 'var(--accent-arrest-light)', border: 'var(--accent-arrest)' }
+      : { bg: 'var(--accent-crime-light)',  border: 'var(--accent-crime)'  };
+  }
+
+  // Apply the metric-aware highlight to whichever filter button is active.
+  function refreshFilterButtonColors() {
+    const filter = document.getElementById('crimeTypeFilter');
+    if (!filter) return;
+    const colors = activeFilterColors();
+    filter.querySelectorAll('.crime-filter-btn').forEach(b => {
+      if (b.classList.contains('active')) {
+        b.style.background = colors.bg;
+        b.style.borderColor = colors.border;
+        b.style.fontWeight = '700';
+      } else {
         b.style.background = 'var(--bg-tertiary)';
         b.style.borderColor = 'var(--border)';
         b.style.fontWeight = '400';
-      });
-      btn.style.background = 'var(--accent-crime-light)';
-      btn.style.borderColor = 'var(--accent-crime)';
-      btn.style.fontWeight = '700';
+      }
+    });
+  }
+
+  // Button click event
+  block.querySelectorAll('.crime-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      block.querySelectorAll('.crime-filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
 
       const type = btn.dataset.type;
       crimeFilterState.selectedType = type === 'all' ? null : type;
+      refreshFilterButtonColors();
       renderMainMapWithFilter();
+    });
+  });
+
+  // Re-color the active button whenever the user switches the crime/arrest metric.
+  document.querySelectorAll('.metric-toggle button').forEach(mb => {
+    mb.addEventListener('click', () => {
+      // Defer so state.metric is updated by the original handler first.
+      setTimeout(refreshFilterButtonColors, 0);
     });
   });
 }
@@ -132,7 +161,7 @@ function renderMainMapWithFilter() {
     });
 
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    const typeLabel = crimeFilterState.selectedType ? CRIME_LABEL[crimeFilterState.selectedType] : (state.metric === 'crime' ? '범죄율' : '검거율');
+    const typeLabel = crimeFilterState.selectedType ? CRIME_LABEL[crimeFilterState.selectedType] : (state.metric === 'crime' ? 'Crime rate' : 'Arrest rate');
     title.textContent = `${guName} · ${typeLabel}`;
     path.appendChild(title);
     mapSvg.appendChild(path);
