@@ -97,7 +97,7 @@
     compDiv.innerHTML = `
       <div class="chart-header" style="margin-bottom: 8px;">
         <div>
-          <h2 id="comp-title" style="font-family: 'Gowun Batang', serif; font-size: 20px; font-weight: 700; margin-bottom:4px;">Safety Ranking Across Seoul’s 25 Districts</h2>
+          <h2 id="comp-title" style="font-family: var(--font-heading); font-size: 20px; font-weight: 700; margin-bottom:4px;">Safety Ranking Across Seoul’s 25 Districts</h2>
           <div class="subtitle" id="comp-subtitle" style="font-size: 13px; color: var(--text-secondary);">Selected Districts: None</div>
         </div>
       </div>
@@ -105,11 +105,11 @@
       <div id="all-districts-wrapper">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:8px;">
           <div>
-            <div style="font-size:12px; font-weight:700; color:#e63946; margin-bottom:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.08em;">▌ CRIME RATE (per 100k)</div>
+            <div style="font-size:12px; font-weight:700; color:#e63946; margin-bottom:6px; font-family:var(--font-mono); letter-spacing:0.08em;">▌ CRIME RATE (per 100k)</div>
             <svg id="svgCrime" width="100%" height="460" viewBox="0 0 680 520"></svg>
           </div>
             <div>
-            <div style="font-size:12px; font-weight:700; color:#06a77d; margin-bottom:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.08em;">▌ ARREST RATE (%)</div>
+            <div style="font-size:12px; font-weight:700; color:#06a77d; margin-bottom:6px; font-family:var(--font-mono); letter-spacing:0.08em;">▌ ARREST RATE (%)</div>
             <svg id="svgArrest" width="100%" height="460" viewBox="0 0 680 520"></svg>
           </div>
         </div>
