@@ -264,8 +264,8 @@
 
     const compTitle = document.getElementById('comp-title');
     const subtitle = document.getElementById('comp-subtitle');
-    compTitle.textContent = `Safety Ranking Across Seoul's 25 Districts`;
-    subtitle.textContent = `(${year})  ▌ Crime Rate  vs  ▌ Arrest Rate — dashed line = average`;
+    compTitle.textContent = `Crime Data Ranking Across Seoul's 25 Districts`;
+    subtitle.textContent = `(${year}) dashed line = average`;
 
     const avgCrime  = d3.mean(barData, d => d.crime);
     const avgArrest = d3.mean(barData, d => d.arrest);
