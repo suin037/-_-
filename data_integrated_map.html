@@ -1106,15 +1106,16 @@ function renderStats() {
     const minVal = Math.min(...vals);
     const maxVal = Math.max(...vals);
 
-    document.getElementById('legendMin').textContent =
-      state.metric === 'crime' ? minVal.toFixed(1) : minVal.toFixed(1) + '%';
-    document.getElementById('legendMax').textContent =
-      state.metric === 'crime' ? maxVal.toFixed(1) : maxVal.toFixed(1) + '%';
+    const elMin = document.getElementById('legendMin');
+    const elMax = document.getElementById('legendMax');
+    if (elMin) elMin.textContent = state.metric === 'crime' ? minVal.toFixed(1) : minVal.toFixed(1) + '%';
+    if (elMax) elMax.textContent = state.metric === 'crime' ? maxVal.toFixed(1) : maxVal.toFixed(1) + '%';
   }
   // 툴팁 내용 지표에 따라 변경
-  document.getElementById('legendTooltipTitle').textContent =
-    state.metric === 'crime' ? '[Crime rate formula]' : '[Arrest rate formula]';
-  document.getElementById('legendTooltipBody').innerHTML =
+  const elTitle = document.getElementById('legendTooltipTitle');
+  const elBody  = document.getElementById('legendTooltipBody');
+  if (elTitle) elTitle.textContent = state.metric === 'crime' ? '[Crime rate formula]' : '[Arrest rate formula]';
+  if (elBody) elBody.innerHTML =
     state.metric === 'crime'
       ? 'Crime rate = (incidents / district population) × 100,000<br>Unit: incidents per 100k residents'
       : 'Arrest rate = (arrests / incidents) × 100<br>Unit: %';
