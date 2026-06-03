@@ -376,7 +376,7 @@
         .attr('x', d => xScale(d.gu) + xScale.bandwidth() / 2)
         .attr('y', H - margin.bottom + 6)
         .attr('text-anchor', 'end')
-        .attr('transform', d => `rotate(-55, ${xScale(d.gu) + xScale.bandwidth() / 2}, ${H - margin.bottom + 6})`)
+        .attr('transform', d => `rotate(-55, ${xScale(d.gu) + xScale.bandwidth() / 2+20}, ${H - margin.bottom + 6})`)
         .attr('font-size', '13px')
         .attr('font-weight', '600')
         .attr('fill', 'var(--text-primary)')
