@@ -131,12 +131,12 @@ function renderAllMarkers() {
     // Vivid red pin — clearly distinct from the blue police-station markers.
     markerGroup.append('circle')
       .attr('cx', x).attr('cy', y).attr('r', 12)
-      .attr('fill', '#ef2d56').attr('stroke', '#ffffff').attr('stroke-width', 3.5);
+      .attr('fill', '#008000').attr('stroke', '#ffffff').attr('stroke-width', 3.5);
 
     markerGroup.append('text')
       .attr('x', x).attr('y', y - 20)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '22px').attr('font-weight', '800').attr('fill', '#b91c3c')
+      .attr('font-size', '22px').attr('font-weight', '800').attr('fill', '#008000')
       .style('paint-order', 'stroke')
       .style('stroke', 'rgba(255, 255, 255, 0.95)').style('stroke-width', '4.5px')
       .text(addressName);
