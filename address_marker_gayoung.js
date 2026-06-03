@@ -116,23 +116,29 @@ function renderAllMarkers() {
       .attr('class', 'address-marker-group')
       .style('opacity', 1)
       .style('cursor', 'pointer')
+      .style('filter', 'drop-shadow(0px 2px 4px rgba(0,0,0,0.45))')
       .on('click', function() {
         const idx = savedMarkers.findIndex(m => m.lng === lng && m.lat === lat);
         if (idx !== -1) savedMarkers.splice(idx, 1);
         d3.select(this).remove();
       });
 
+    // White halo behind the pin for strong contrast on any district color.
+    markerGroup.append('circle')
+      .attr('cx', x).attr('cy', y).attr('r', 16)
+      .attr('fill', '#ffffff');
+
+    // Vivid red pin — clearly distinct from the blue police-station markers.
     markerGroup.append('circle')
       .attr('cx', x).attr('cy', y).attr('r', 12)
-      .attr('fill', '#3b82f6').attr('stroke', '#ffffff').attr('stroke-width', 3)
-      .style('filter', 'drop-shadow(0px 2px 4px rgba(0,0,0,0.3))');
+      .attr('fill', '#ef2d56').attr('stroke', '#ffffff').attr('stroke-width', 3.5);
 
     markerGroup.append('text')
-      .attr('x', x).attr('y', y - 18)
+      .attr('x', x).attr('y', y - 20)
       .attr('text-anchor', 'middle')
-      .attr('font-size', '22px').attr('font-weight', '700').attr('fill', '#1a202c')
+      .attr('font-size', '22px').attr('font-weight', '800').attr('fill', '#b91c3c')
       .style('paint-order', 'stroke')
-      .style('stroke', 'rgba(255, 255, 255, 0.9)').style('stroke-width', '4px')
+      .style('stroke', 'rgba(255, 255, 255, 0.95)').style('stroke-width', '4.5px')
       .text(addressName);
   });
 
