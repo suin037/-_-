@@ -107,6 +107,9 @@
   /* =========================================================
    * 2. CSS — SPA styles + detail panel button
    * ========================================================= */
+  // Shared layer visibility state for mini-maps in the comparison panel
+  const miniMapLayers = { cctv: true, police: true };
+
   function injectStyles() {
     if (document.getElementById('jiyunSpaStyles')) return;
     const s = document.createElement('style');
@@ -115,6 +118,19 @@
       .compare-two-btn { width: 100%; padding: 12px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: 10px; font-family: 'IBM Plex Sans KR', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; box-shadow: var(--shadow-sm); }
       .compare-two-btn:hover { background: var(--bg-secondary); }
       .compare-two-btn.selecting { background: var(--text-primary); color: white; border-color: var(--text-primary); }
+
+      /* Layer toggle buttons for mini-maps */
+      .mini-layer-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+      .mini-layer-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: white; font-size: 12px; font-weight: 600; color: var(--text-tertiary); cursor: pointer; transition: all 0.18s; font-family: 'IBM Plex Sans KR', sans-serif; }
+      .mini-layer-btn:not(.active) { opacity: 0.55; }
+      .mini-layer-btn.active[data-layer="cctv"]   { border-color: #7c3aed; background: rgba(167,139,250,0.12); color: #6d28d9; }
+      .mini-layer-btn.active[data-layer="police"] { border-color: #2563eb; background: rgba(37,99,235,0.10); color: #1d4ed8; }
+      .mini-layer-dot { width: 10px; height: 10px; border-radius: 50%; }
+      .mini-layer-btn.active .mini-layer-dot.cctv   { background: #7c3aed; }
+      .mini-layer-btn.active .mini-layer-dot.police { background: #2563eb; }
+
+      /* Tooltip for mini-map dong hover */
+      #miniMapTooltip { position: fixed; display: none; background: #1a202c; color: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-size: 12px; pointer-events: none; z-index: 9999; line-height: 1.7; box-shadow: 0 4px 14px rgba(0,0,0,0.35); font-family: 'IBM Plex Sans KR', sans-serif; white-space: nowrap; }
 
       .app { transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
       .app.jiyun-active { display: flex !important; width: 100vw; height: 100vh; overflow: hidden; }
@@ -218,6 +234,13 @@
       panel.id = 'jiyunSidePanel';
       app.appendChild(panel);
     }
+
+    // Shared tooltip for mini-map dong hover
+    if (!document.getElementById('miniMapTooltip')) {
+      const tip = document.createElement('div');
+      tip.id = 'miniMapTooltip';
+      document.body.appendChild(tip);
+    }
     
     if (!document.getElementById('startCompareTwoBtn')) {
       const sb = document.querySelector('.sidebar');
@@ -313,6 +336,23 @@
     updateLayoutAndRender();
   };
 
+  function resetLeftPanelCharts() {
+    // Reset scatter plot — deselect all districts and re-render cleanly
+    if (typeof window.renderMainScatter === 'function') {
+      // Temporarily clear any drag/brush selections on the scatter
+      if (window.state) {
+        window.state.selectedGu = null;
+        window.state.baseline = null;
+      }
+      window.renderMainScatter();
+    }
+    // Reset the main stacked bar chart (chartSvg)
+    const chartSvg = document.getElementById('chartSvg');
+    if (chartSvg) chartSvg.innerHTML = '';
+    // Also clear brush/drag highlights if brushing_hyewon exposes a reset
+    if (typeof window.resetBrushSelection === 'function') window.resetBrushSelection();
+  }
+
   function updateLayoutAndRender() {
     const app = document.querySelector('.app');
     const panel = document.getElementById('jiyunSidePanel');
@@ -327,6 +367,9 @@
       if (typeof window.renderMainMap === 'function') window.renderMainMap();
       return;
     }
+
+    // Reset left-panel charts to initial state whenever the comparison panel opens
+    resetLeftPanelCharts();
 
     // open panel: add jiyun-active first → add panel-open on next frame
     app.classList.add('jiyun-active');
@@ -363,14 +406,21 @@
         <div class="two-compare-body">
           <div class="two-chart-section">
             <h3>District Boundary & Safety Infrastructure</h3>
+            <div class="mini-layer-toggles" id="singleLayerToggles">
+              <button class="mini-layer-btn active" data-layer="cctv">
+                <span class="mini-layer-dot cctv"></span>CCTV density
+              </button>
+              <button class="mini-layer-btn active" data-layer="police">
+                <span class="mini-layer-dot police"></span>Police stations
+              </button>
+            </div>
+            <div style="font-size:11px; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; margin-bottom:8px;">
+              ◉ Circle size = CCTV density (cameras/km²), not total count &nbsp;·&nbsp; hover a neighborhood for details
+            </div>
             <div class="two-map-card card-a" style="max-width: 600px; margin: 0 auto;">
               <div class="two-map-card-label">${guA}</div>
-              <div class="two-map-card-sub">Crime Rate ${dA.crime?.toFixed(1)||'—'} · Arrest Rate ${dA.arrest?.toFixed(1)||'—'}% · CCTV ${cctvA.toLocaleString()}</div>
+              <div class="two-map-card-sub">Crime Rate ${dA.crime?.toFixed(1)||'—'} · Arrest Rate ${dA.arrest?.toFixed(1)||'—'}% · Total CCTV ${cctvA.toLocaleString()}</div>
               <div class="two-map-svg-wrap" id="singleMapSvg" style="min-height:480px;"></div>
-            </div>
-            <div style="display:flex; gap:16px; margin-top:12px; justify-content:center; font-size:12px; color:var(--text-secondary);">
-              <div style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:50%;background:#a78bfa;border:1.5px solid #7c3aed;"></span> CCTV Installation Ratio</div>
-              <div style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:50%;background:#64748b;border:1.5px solid white;box-shadow:0 0 2px rgba(0,0,0,0.3)"></span> Police Station</div>
             </div>
           </div>
           <div class="two-chart-section">
@@ -381,6 +431,19 @@
       `;
       renderMiniMap2('singleMapSvg', guA, 'a', true);
       renderSingleTrendChart('singleTrendSvg', guA);
+
+      // Wire up single-panel layer toggles
+      // CCTV button: toggles whether hover tooltip shows CCTV info
+      // Police button: toggles police marker visibility (requires map re-render)
+      document.getElementById('singleLayerToggles').addEventListener('click', e => {
+        const btn = e.target.closest('.mini-layer-btn');
+        if (!btn) return;
+        const layer = btn.dataset.layer;
+        miniMapLayers[layer] = !miniMapLayers[layer];
+        btn.classList.toggle('active', miniMapLayers[layer]);
+        // Only police layer requires a re-render; CCTV is tooltip-only
+        if (layer === 'police') renderMiniMap2('singleMapSvg', guA, 'a', true);
+      });
 
     } else if (guA && guB) {
       const dA = state.crimeData[guA]?.[yr] || {};
@@ -400,6 +463,17 @@
           
           <div class="two-chart-section">
             <h3>Safety Infrastructure Distribution</h3>
+            <div class="mini-layer-toggles" id="twoLayerToggles">
+              <button class="mini-layer-btn active" data-layer="cctv">
+                <span class="mini-layer-dot cctv"></span>CCTV density
+              </button>
+              <button class="mini-layer-btn active" data-layer="police">
+                <span class="mini-layer-dot police"></span>Police stations
+              </button>
+            </div>
+            <div style="font-size:11px; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; margin-bottom:10px;">
+              ◉ Circle size = CCTV density (cameras/km²), not total count &nbsp;·&nbsp; hover a neighborhood for details
+            </div>
             <div class="two-map-row-vertical">
               <div class="two-map-card card-a">
                 <div class="two-map-card-label">${guA}</div>
@@ -411,10 +485,6 @@
                 <div class="two-map-card-sub" id="twoMapSubB">Crime Rate ${dB.crime?.toFixed(1)||'—'} · Arrest Rate ${dB.arrest?.toFixed(1)||'—'}%</div>
                 <div class="two-map-svg-wrap" id="twoMapSvgB"></div>
               </div>
-            </div>
-            <div style="display:flex; gap:16px; margin-top:12px; font-size:12px; color:var(--text-secondary);">
-              <div style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:50%;background:#a78bfa;border:1.5px solid #7c3aed;"></span> CCTV Installation Ratio</div>
-              <div style="display:flex; align-items:center; gap:6px;"><span style="width:12px;height:12px;border-radius:50%;background:#64748b;border:1.5px solid white;box-shadow:0 0 2px rgba(0,0,0,0.3)"></span> Police Station</div>
             </div>
           </div>
 
@@ -458,8 +528,6 @@
             </div>
           </div>
 
-
-
           <div class="two-chart-section">
             <h3>Incident Count by Crime Type</h3>
             <svg id="twoCrimeSvg" width="100%" viewBox="0 0 800 260" preserveAspectRatio="xMidYMid meet" style="display:block"></svg>
@@ -491,6 +559,20 @@
       renderTwoCrimeChart2(guA, guB, yr);
       renderTwoTrendChart2(guA, guB);
       renderTwoScatterChart(guA, guB, yr);
+
+      // Wire up two-panel layer toggles
+      // CCTV button: toggles hover tooltip; Police button: toggles pin visibility
+      document.getElementById('twoLayerToggles').addEventListener('click', e => {
+        const btn = e.target.closest('.mini-layer-btn');
+        if (!btn) return;
+        const layer = btn.dataset.layer;
+        miniMapLayers[layer] = !miniMapLayers[layer];
+        btn.classList.toggle('active', miniMapLayers[layer]);
+        if (layer === 'police') {
+          renderMiniMap2('twoMapSvgA', guA, 'a');
+          renderMiniMap2('twoMapSvgB', guB, 'b');
+        }
+      });
 
       // wire up filter events
       document.querySelectorAll('#crimeFilterList input[type=checkbox]').forEach(cb => {
@@ -531,65 +613,118 @@
     const outerStroke = slot==='a' ? '#3b82f6' : '#f97316';
     const svgHeight = isLarge ? '500px' : '440px';
 
+    // Build SVG string
     let svg = `<svg viewBox="${vbX} ${vbY} ${vbW} ${vbH}" xmlns="${NS2}" style="width:100%;height:${svgHeight};display:block" preserveAspectRatio="xMidYMid meet">`;
     svg += `<defs><clipPath id="${clipId}"><path d="${guPath}"/></clipPath></defs>`;
     svg += `<path d="${guPath}" fill="#f8fafc" stroke="${outerStroke}" stroke-width="${3.5*scale}" stroke-linejoin="round"/>`;
     svg += `<g clip-path="url(#${clipId})">`;
     dongs.forEach((dong) => {
       if (!dong.d) return;
-      svg += `<path d="${dong.d}" fill="rgba(241,243,245,.7)" stroke="#cbd2d9" stroke-width="${1.2*scale}" stroke-linejoin="round"/>`;
+      // Store CCTV data in data attributes for hover tooltip
+      const cctvGuData = state.cctvData && state.cctvData[guName];
+      const key = cctvGuData ? Object.keys(cctvGuData).find(k => dong.name===k || (typeof normalizeDongName==='function' && normalizeDongName(dong.name)===k)) : null;
+      const info2 = key ? cctvGuData[key] : null;
+      const cctvCount = info2 ? info2.count : 0;
+      const cctvRatio = info2 ? info2.ratio.toFixed(1) : '0';
+      svg += `<path d="${dong.d}" fill="rgba(241,243,245,.7)" stroke="#cbd2d9" stroke-width="${1.2*scale}" stroke-linejoin="round" data-dong="${dong.name}" data-cctv-count="${cctvCount}" data-cctv-ratio="${cctvRatio}" style="cursor:default"/>`;
     });
     svg += `</g>`;
     svg += `<path d="${guPath}" fill="none" stroke="${outerStroke}" stroke-width="${3.5*scale}" stroke-linejoin="round"/>`;
 
-    if (state.cctvData && state.cctvData[guName]) {
-      const maxR = state.cctvMaxRatio || 520;
-      dongs.forEach(dong => {
-        const key = Object.keys(state.cctvData[guName]).find(k => dong.name===k || (typeof normalizeDongName==='function' && normalizeDongName(dong.name)===k));
-        const info2 = key ? state.cctvData[guName][key] : null;
-        if (info2 && info2.ratio > 0) {
-          const r = (4 + (info2.ratio/maxR)*24) * scale;
-          svg += `<circle cx="${dong.cx}" cy="${dong.cy}" r="${r}" fill="#a78bfa" fill-opacity=".32" stroke="#7c3aed" stroke-width="${1.1*scale}"><title>${dong.name} CCTV ratio: ${info2.ratio.toFixed(1)}</title></circle>`;
-        }
-      });
-    }
+    // CCTV info is shown via hover tooltip only — no circles drawn to avoid overflowing dong boundaries
 
+    // Dong name labels
     dongs.forEach(dong => {
-      svg += `<text x="${dong.cx}" y="${dong.cy}" text-anchor="middle" dominant-baseline="middle" font-size="${11*scale}px" font-weight="600" fill="#1e293b" style="paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:${3*scale}px">${dong.name}</text>`;
+      svg += `<text x="${dong.cx}" y="${dong.cy}" text-anchor="middle" dominant-baseline="middle" font-size="${11*scale}px" font-weight="600" fill="#1e293b" style="paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:${3*scale}px" pointer-events="none">${dong.name}</text>`;
     });
 
-    // 💡 경찰서 좌표계 완벽 연동 (메인 지도의 scaleX, scaleY 활용)
-    if (state.policeData) {
+    // Police station markers — teardrop pin icon, shown only when layer is active
+    if (miniMapLayers.police && state.policeData) {
       const guShort = guName.replace('구','');
-      state.policeData.forEach(p => {
-        if (p.address.includes(guShort)) {
-          const px = scaleX(p.lng);
-          const py = scaleY(p.lat);
-          svg += `<g transform="translate(${px},${py})">
-            <circle cx="0" cy="0" r="${3.5*scale}" fill="#64748b" stroke="white" stroke-width="${1.5*scale}">
-              <title>${p.name} ${p.type}</title>
-            </circle>
-          </g>`;
+
+      // Build gu boundary polygon for clamping out-of-bounds coords
+      const poly = xs.map((x, i) => [x, ys[i]]);
+      const cenX = dongs.filter(d=>d.cx).reduce((s,d,_,a)=>s+d.cx/a.length, 0) || (xs.reduce((a,b)=>a+b,0)/xs.length);
+      const cenY = dongs.filter(d=>d.cy).reduce((s,d,_,a)=>s+d.cy/a.length, 0) || (ys.reduce((a,b)=>a+b,0)/ys.length);
+
+      const inPoly = (qx, qy) => {
+        let inside = false;
+        for (let i=0, j=poly.length-1; i<poly.length; j=i++) {
+          const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1];
+          if (((yi>qy)!==(yj>qy)) && (qx<(xj-xi)*(qy-yi)/(yj-yi)+xi)) inside=!inside;
         }
+        return inside;
+      };
+      const clampInside = (qx, qy) => {
+        let bx=qx, by=qy, bd=Infinity;
+        for (let i=0; i<poly.length; i++) {
+          const a=poly[i], b2=poly[(i+1)%poly.length];
+          const dx=b2[0]-a[0], dy=b2[1]-a[1];
+          const len2=dx*dx+dy*dy||1;
+          let t=((qx-a[0])*dx+(qy-a[1])*dy)/len2;
+          t=Math.max(0,Math.min(1,t));
+          const ex=a[0]+t*dx, ey=a[1]+t*dy;
+          const d=(ex-qx)*(ex-qx)+(ey-qy)*(ey-qy);
+          if(d<bd){bd=d;bx=ex;by=ey;}
+        }
+        const vx=cenX-bx, vy=cenY-by, vlen=Math.hypot(vx,vy)||1;
+        return [bx+(vx/vlen)*18*scale, by+(vy/vlen)*18*scale];
+      };
+
+      state.policeData.forEach(p => {
+        if (!p.address.includes(guShort)) return;
+        let px = scaleX(p.lng);
+        let py = scaleY(p.lat);
+        if (!inPoly(px, py)) { const c = clampInside(px, py); px = c[0]; py = c[1]; }
+        const s2 = scale;
+        // Improved teardrop pin: dark navy body + white circle + "P" label
+        svg += `<g transform="translate(${px},${py})" style="cursor:help">
+          <path d="M0,${4*s2} L${-10*s2},${-12*s2} A${10*s2},${10*s2} 0 1,1 ${10*s2},${-12*s2} Z" fill="#1d4ed8" stroke="white" stroke-width="${1.5*s2}" stroke-linejoin="round"/>
+          <circle cx="0" cy="${-12*s2}" r="${5.5*s2}" fill="white"/>
+          <text x="0" y="${-8.5*s2}" text-anchor="middle" font-size="${8*s2}px" font-weight="900" fill="#1d4ed8" font-family="'JetBrains Mono',monospace">P</text>
+          <title>${p.name} (${p.type})\n${p.address}</title>
+        </g>`;
       });
     }
+
     svg += `</svg>`;
     container.innerHTML = svg;
-    
-    // 주소 마커 미니맵에도 표시
+
+    // Attach dong hover tooltip
+    const tip = document.getElementById('miniMapTooltip');
+    if (tip) {
+      container.querySelectorAll('[data-dong]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('mouseover', () => {
+          const count = parseInt(el.dataset.cctvCount) || 0;
+          const ratio = el.dataset.cctvRatio || '0';
+          const cctvLine = miniMapLayers.cctv
+            ? `CCTV: ${count > 0 ? count.toLocaleString() + ' cameras' : 'No data'}<br>Density: ${ratio} / km²`
+            : '';
+          tip.innerHTML =
+            `<div style="font-weight:700;margin-bottom:2px">${el.dataset.dong}</div>` + cctvLine;
+          tip.style.display = 'block';
+        });
+        el.addEventListener('mousemove', e => {
+          tip.style.left = (e.clientX + 14) + 'px';
+          tip.style.top  = (e.clientY - 60) + 'px';
+        });
+        el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+      });
+    }
+
+    // Address markers (if any)
     if (typeof savedMarkers !== 'undefined' && savedMarkers.length > 0) {
       const miniSvg = container.querySelector('svg');
       if (miniSvg) {
         savedMarkers.forEach(({ lng, lat, addressName }) => {
           const x = scaleX(lng);
           const y = scaleY(lat);
-      
           const circle = document.createElementNS(NS2, 'circle');
           circle.setAttribute('cx', x); circle.setAttribute('cy', y);
           circle.setAttribute('r', '6'); circle.setAttribute('fill', '#3b82f6');
           circle.setAttribute('stroke', '#ffffff'); circle.setAttribute('stroke-width', '3');
           miniSvg.appendChild(circle);
-
           const text = document.createElementNS(NS2, 'text');
           text.setAttribute('x', x); text.setAttribute('y', String(y - 18));
           text.setAttribute('text-anchor', 'middle');
