@@ -115,13 +115,13 @@
     const s = document.createElement('style');
     s.id = 'jiyunSpaStyles';
     s.textContent = `
-      .compare-two-btn { width: 100%; padding: 12px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: 10px; font-family: 'IBM Plex Sans KR', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; box-shadow: var(--shadow-sm); }
+      .compare-two-btn { width: 100%; padding: 12px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-strong); border-radius: 10px; font-family: var(--font-body); font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 4px; box-shadow: var(--shadow-sm); }
       .compare-two-btn:hover { background: var(--bg-secondary); }
       .compare-two-btn.selecting { background: var(--text-primary); color: white; border-color: var(--text-primary); }
 
       /* Layer toggle buttons for mini-maps */
       .mini-layer-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
-      .mini-layer-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: white; font-size: 12px; font-weight: 600; color: var(--text-tertiary); cursor: pointer; transition: all 0.18s; font-family: 'IBM Plex Sans KR', sans-serif; }
+      .mini-layer-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--border); background: white; font-size: 12px; font-weight: 600; color: var(--text-tertiary); cursor: pointer; transition: all 0.18s; font-family: var(--font-body); }
       .mini-layer-btn:not(.active) { opacity: 0.55; }
       .mini-layer-btn.active[data-layer="cctv"]   { border-color: #7c3aed; background: rgba(167,139,250,0.12); color: #6d28d9; }
       .mini-layer-btn.active[data-layer="police"] { border-color: #2563eb; background: rgba(37,99,235,0.10); color: #1d4ed8; }
@@ -130,7 +130,7 @@
       .mini-layer-btn.active .mini-layer-dot.police { background: #2563eb; }
 
       /* Tooltip for mini-map dong hover */
-      #miniMapTooltip { position: fixed; display: none; background: #1a202c; color: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-size: 12px; pointer-events: none; z-index: 9999; line-height: 1.7; box-shadow: 0 4px 14px rgba(0,0,0,0.35); font-family: 'IBM Plex Sans KR', sans-serif; white-space: nowrap; }
+      #miniMapTooltip { position: fixed; display: none; background: #1a202c; color: #f8f9fa; padding: 8px 12px; border-radius: 8px; font-size: 12px; pointer-events: none; z-index: 9999; line-height: 1.7; box-shadow: 0 4px 14px rgba(0,0,0,0.35); font-family: var(--font-body); white-space: nowrap; }
 
       .app { transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1); }
       .app.jiyun-active { display: flex !important; width: 100vw; height: 100vh; overflow: hidden; }
@@ -186,12 +186,12 @@
       .gu-path.compare-selected-b { stroke: var(--accent-orange) !important; stroke-width: 5 !important; filter: drop-shadow(0 0 6px rgba(249,115,22,0.6)); }
 
       .two-compare-header { padding: 24px 32px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; position: sticky; top: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); z-index: 10; }
-      .two-compare-header h2 { font-family: 'Gowun Batang', serif; font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+      .two-compare-header h2 { font-family: var(--font-heading); font-size: 26px; font-weight: 700; margin-bottom: 6px; }
       .two-compare-close { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-tertiary); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-secondary); transition: all 0.2s; }
       .two-compare-close:hover { background: var(--border-strong); transform: rotate(90deg); color: var(--text-primary); }
       
       .two-compare-body { padding: 32px; display: flex; flex-direction: column; gap: 32px; }
-      .two-chart-section h3 { font-family: 'Gowun Batang', serif; font-size: 18px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+      .two-chart-section h3 { font-family: var(--font-heading); font-size: 18px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
       
       .two-map-row-vertical { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
       .two-map-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg-card); box-shadow: var(--shadow-sm); }
@@ -207,10 +207,10 @@
       .two-stat-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
       .two-stat-card.card-a { border-left: 5px solid var(--accent-blue); }
       .two-stat-card.card-b { border-left: 5px solid var(--accent-orange); }
-      .two-stat-card h3 { font-family: 'Gowun Batang', serif; font-size: 20px; font-weight: 700; margin-bottom: 16px; border: none; padding: 0; }
+      .two-stat-card h3 { font-family: var(--font-heading); font-size: 20px; font-weight: 700; margin-bottom: 16px; border: none; padding: 0; }
       .two-stat-items { display: flex; gap: 24px; flex-wrap: wrap; }
       .two-stat-item-label { font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
-      .two-stat-item-val { font-family: 'Gowun Batang', serif; font-size: 28px; font-weight: 700; }
+      .two-stat-item-val { font-family: var(--font-heading); font-size: 28px; font-weight: 700; }
       
       .two-chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
       
@@ -414,7 +414,7 @@
                 <span class="mini-layer-dot police"></span>Police stations
               </button>
             </div>
-            <div style="font-size:11px; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; margin-bottom:8px;">
+            <div style="font-size:11px; color:var(--text-tertiary); font-family:var(--font-mono); margin-bottom:8px;">
               ◉ Circle size = CCTV density (cameras/km²), not total count &nbsp;·&nbsp; hover a neighborhood for details
             </div>
             <div class="two-map-card card-a" style="max-width: 600px; margin: 0 auto;">
@@ -468,7 +468,7 @@
                 <span class="mini-layer-dot police"></span>Police stations
               </button>
             </div>
-            <div style="font-size:11px; color:var(--text-tertiary); font-family:'JetBrains Mono',monospace; margin-bottom:10px;">
+            <div style="font-size:11px; color:var(--text-tertiary); font-family:var(--font-mono); margin-bottom:10px;">
               ◉ Circle size = CCTV density (cameras/km²), not total count &nbsp;·&nbsp; hover a neighborhood for details
             </div>
             <div class="two-map-row-vertical">
@@ -686,7 +686,7 @@
         svg += `<g transform="translate(${px},${py})" style="cursor:help">
           <path d="M0,${4*s2} L${-10*s2},${-12*s2} A${10*s2},${10*s2} 0 1,1 ${10*s2},${-12*s2} Z" fill="#1d4ed8" stroke="white" stroke-width="${1.5*s2}" stroke-linejoin="round"/>
           <circle cx="0" cy="${-12*s2}" r="${5.5*s2}" fill="white"/>
-          <text x="0" y="${-8.5*s2}" text-anchor="middle" font-size="${8*s2}px" font-weight="900" fill="#1d4ed8" font-family="'JetBrains Mono',monospace">P</text>
+          <text x="0" y="${-8.5*s2}" text-anchor="middle" font-size="${8*s2}px" font-weight="900" fill="#1d4ed8" font-family="var(--font-mono)">P</text>
           <title>${p.name} (${p.type})\n${p.address}</title>
         </g>`;
       });
