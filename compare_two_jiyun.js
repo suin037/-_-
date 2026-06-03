@@ -418,7 +418,7 @@
             </div>
           </div>
           <div class="two-chart-section">
-            <h3>Annual Crime Count Trend</h3>
+            <h3>Annual Crime Rate Trend</h3>
             <svg id="singleTrendSvg" width="100%" viewBox="0 0 800 280" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
         </div>
@@ -677,11 +677,11 @@
         if (!inPoly(px, py)) { const c = clampInside(px, py); px = c[0]; py = c[1]; }
         const s2 = scale;
         // Improved teardrop pin: dark navy body + white circle + "P" label
-        svg += `<g transform="translate(${px},${py})" style="cursor:help">
+        svg += `<g transform="translate(${px},${py})" style="cursor:default; pointer-events:auto">
           <path d="M0,${4*s2} L${-10*s2},${-12*s2} A${10*s2},${10*s2} 0 1,1 ${10*s2},${-12*s2} Z" fill="#1d4ed8" stroke="white" stroke-width="${1.5*s2}" stroke-linejoin="round"/>
           <circle cx="0" cy="${-12*s2}" r="${5.5*s2}" fill="white"/>
-          <text x="0" y="${-8.5*s2}" text-anchor="middle" font-size="${8*s2}px" font-weight="900" fill="#1d4ed8" font-family="var(--font-mono)">P</text>
-          <title>${p.name} (${p.type})\n${p.address}</title>
+          <text x="0" y="${-8.5*s2}" text-anchor="middle" font-size="${8*s2}px" font-weight="900" fill="#1d4ed8" font-family="var(--font-mono)" pointer-events="none">P</text>
+          <title>${p.name}</title>
         </g>`;
       });
     }
@@ -711,25 +711,49 @@
       });
     }
 
-    // Address markers (if any)
+    // Address markers (if any) — drawn last so they sit on top of CCTV circles
+    // and police pins. Use a vivid red pin with a white halo + drop shadow so it
+    // is clearly distinguishable from the blue police-station markers.
     if (typeof savedMarkers !== 'undefined' && savedMarkers.length > 0) {
       const miniSvg = container.querySelector('svg');
       if (miniSvg) {
+        const sc = (typeof scale === 'number' && scale > 0) ? scale : 1;
         savedMarkers.forEach(({ lng, lat, addressName }) => {
           const x = scaleX(lng);
           const y = scaleY(lat);
-          const circle = document.createElementNS(NS2, 'circle');
-          circle.setAttribute('cx', x); circle.setAttribute('cy', y);
-          circle.setAttribute('r', '6'); circle.setAttribute('fill', '#3b82f6');
-          circle.setAttribute('stroke', '#ffffff'); circle.setAttribute('stroke-width', '3');
-          miniSvg.appendChild(circle);
+
+          const g = document.createElementNS(NS2, 'g');
+          g.setAttribute('transform', `translate(${x},${y})`);
+          g.style.filter = 'drop-shadow(0px 2px 3px rgba(0,0,0,0.45))';
+
+          // white halo behind the pin for contrast on any background
+          const halo = document.createElementNS(NS2, 'circle');
+          halo.setAttribute('cx', '0'); halo.setAttribute('cy', '0');
+          halo.setAttribute('r', String(9 * sc));
+          halo.setAttribute('fill', '#ffffff');
+          g.appendChild(halo);
+
+          const dot = document.createElementNS(NS2, 'circle');
+          dot.setAttribute('cx', '0'); dot.setAttribute('cy', '0');
+          dot.setAttribute('r', String(6.5 * sc));
+          dot.setAttribute('fill', '#ef2d56');
+          dot.setAttribute('stroke', '#ffffff');
+          dot.setAttribute('stroke-width', String(2.5 * sc));
+          g.appendChild(dot);
+
           const text = document.createElementNS(NS2, 'text');
-          text.setAttribute('x', x); text.setAttribute('y', String(y - 18));
+          text.setAttribute('x', '0'); text.setAttribute('y', String(-16 * sc));
           text.setAttribute('text-anchor', 'middle');
-          text.setAttribute('font-size', '11'); text.setAttribute('font-weight', '700');
-          text.setAttribute('fill', '#1a202c');
+          text.setAttribute('font-size', String(12 * sc));
+          text.setAttribute('font-weight', '800');
+          text.setAttribute('fill', '#b91c3c');
+          text.style.paintOrder = 'stroke';
+          text.style.stroke = 'rgba(255,255,255,0.95)';
+          text.style.strokeWidth = `${3.5 * sc}px`;
           text.textContent = addressName;
-          miniSvg.appendChild(text);
+          g.appendChild(text);
+
+          miniSvg.appendChild(g);
         });
       }
     }
