@@ -106,11 +106,11 @@
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:8px;">
           <div>
             <div style="font-size:12px; font-weight:700; color:#e63946; margin-bottom:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.08em;">▌ CRIME RATE (per 100k)</div>
-            <svg id="svgCrime" width="100%" height="520" viewBox="0 0 700 520"></svg>
+            <svg id="svgCrime" width="100%" height="460" viewBox="0 0 680 520"></svg>
           </div>
             <div>
             <div style="font-size:12px; font-weight:700; color:#06a77d; margin-bottom:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.08em;">▌ ARREST RATE (%)</div>
-            <svg id="svgArrest" width="100%" height="520" viewBox="0 0 700 520"></svg>
+            <svg id="svgArrest" width="100%" height="460" viewBox="0 0 680 520"></svg>
           </div>
         </div>
       </div>
@@ -271,8 +271,8 @@
     const avgArrest = d3.mean(barData, d => d.arrest);
 
     // ── 공통 설정 ──────────────────────────────────────────
-    const W = 800, H = 520;
-    const margin = { top: 36, right: 50, bottom: 120, left: 50 };
+    const W = 680, H = 460;
+    const margin = { top: 36, right: 30, bottom: 110, left: 45 };
     const innerW = W - margin.left - margin.right;
     const innerH = H - margin.top  - margin.bottom;
     const t = d3.transition().duration(600).ease(d3.easeCubicOut);
