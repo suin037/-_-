@@ -482,8 +482,13 @@
       arrest: state.crimeData[gu]?.[state.year]?.arrest || 0,
     })).filter(p => p.crime > 0);
 
-    const avgC = points.reduce((a,b)=>a+b.crime, 0)  / points.length;
-    const avgA = points.reduce((a,b)=>a+b.arrest, 0) / points.length;
+    const allYears = ['2021','2022','2023','2024'];
+    const allPoints = allGu.flatMap(gu => allYears.map(yr => ({
+      crime:  state.crimeData[gu]?.[yr]?.crime  || 0,
+      arrest: state.crimeData[gu]?.[yr]?.arrest || 0,
+    }))).filter(p => p.crime > 0);
+    const avgC = allPoints.reduce((a,b)=>a+b.crime, 0)  / allPoints.length;
+    const avgA = allPoints.reduce((a,b)=>a+b.arrest, 0) / allPoints.length;
 
     // always redraw static layer (avg lines change per year)
     [...svg.querySelectorAll(':not(.scatter-dot-g):not(.scatter-point-label):not(.scatter-dot-g *)')].forEach(el => el.remove());

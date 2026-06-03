@@ -723,7 +723,35 @@
     </div>
 
     <div class="control-block">
-  <div class="control-label"><span>Location search (address)</span></div>
+  <div class="control-label">
+    <span>Location search (address)</span>
+    <div class="addr-tooltip-wrap" style="position: relative; cursor: pointer;">
+      <span style="
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: var(--text-tertiary); color: white;
+        font-size: 10px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif;
+        line-height: 1; letter-spacing: 0;
+      ">!</span>
+      <div class="addr-tooltip-text" style="
+        visibility: hidden; opacity: 0;
+        position: absolute; right: 0; bottom: 125%;
+        width: 200px;
+        background: #2c3e50; color: #fff;
+        text-align: left; border-radius: 6px;
+        padding: 10px; z-index: 999;
+        font-size: 11px; line-height: 1.5;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        transition: opacity 0.2s;
+        font-family: 'IBM Plex Sans KR', sans-serif;
+        text-transform: none; letter-spacing: 0;
+      ">
+        <strong>도로명 주소로 입력해주세요</strong><br>
+        ex) 연세로 50<br>
+        ex) 서울특별시 서대문구 연세로 50
+      </div>
+    </div>
+  </div>
   <div style="display: flex; gap: 4px; width: 100%;">
     <input type="text" id="addressInput" placeholder="서울시 자치구 동..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-family: 'IBM Plex Sans KR'; font-size: 12px; min-width: 0;">
     <button id="addressSearchBtn" style="padding: 8px 10px; background: var(--text-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; white-space: nowrap;">Search</button>
@@ -1103,19 +1131,22 @@ function renderStats() {
     const minVal = Math.min(...vals);
     const maxVal = Math.max(...vals);
 
-    document.getElementById('legendMin').textContent =
-      state.metric === 'crime' ? minVal.toFixed(1) : minVal.toFixed(1) + '%';
-    document.getElementById('legendMax').textContent =
-      state.metric === 'crime' ? maxVal.toFixed(1) : maxVal.toFixed(1) + '%';
+    const legendMin = document.getElementById('legendMin');
+    const legendMax = document.getElementById('legendMax');
+    if (legendMin) legendMin.textContent =
+      state.metric === 'crime' ? minVal.toFixed(1) + '건' : minVal.toFixed(1) + '%';
+    if (legendMax) legendMax.textContent =
+      state.metric === 'crime' ? maxVal.toFixed(1) + '건' : maxVal.toFixed(1) + '%';
   }
   // 툴팁 내용 지표에 따라 변경
-  document.getElementById('legendTooltipTitle').textContent =
+  const tooltipTitle = document.getElementById('legendTooltipTitle');
+  const tooltipBody = document.getElementById('legendTooltipBody');
+  if (tooltipTitle) tooltipTitle.textContent =
     state.metric === 'crime' ? '[범죄율 계산식]' : '[검거율 계산식]';
-  document.getElementById('legendTooltipBody').innerHTML =
+  if (tooltipBody) tooltipBody.innerHTML =
     state.metric === 'crime'
       ? '범죄율 = (발생건수 / 자치구 인구) × 100,000<br>단위: 10만명당 발생건수'
       : '검거율 = (검거건수 / 발생건수) × 100<br>단위: %';
-
   // 호버 이벤트 (한 번만 등록)
   const tw = document.getElementById('legendTooltipWrap');
   const tt = document.getElementById('legendTooltipText');
@@ -1444,6 +1475,16 @@ loadAllData();
 <script src="compare_two_jiyun.js"></script>
 <script src="brushing_hyewon.js"></script>
 <script src="Display_top5_jei.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const wrap = document.querySelector('.addr-tooltip-wrap');
+    const tip = document.querySelector('.addr-tooltip-text');
+    if (wrap && tip) {
+      wrap.addEventListener('mouseenter', () => { tip.style.visibility = 'visible'; tip.style.opacity = '1'; });
+      wrap.addEventListener('mouseleave', () => { tip.style.visibility = 'hidden'; tip.style.opacity = '0'; });
+    }
+  });
+</script>
 <script src="address_marker_gayoung.js"></script>
 </body>
 </html>

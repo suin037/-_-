@@ -130,11 +130,11 @@
                     padding 0.45s;
       }
       .app.jiyun-active.panel-open .sidebar { 
-        width: 0 !important; 
-        opacity: 0; 
-        padding: 0 !important;
-        transform: translateX(-30px);
-        pointer-events: none;
+      width: 0 !important; 
+      opacity: 0; 
+      padding: 0 !important;
+      transform: translateX(-30px);
+      pointer-events: none;
       }
       .app.jiyun-active .main { 
         flex: 1; overflow-y: auto; border-right: 1px solid var(--border); padding: 24px;
@@ -469,7 +469,7 @@
             <h3>Crime Rate Trend by Year</h3>
             <svg id="twoTrendSvg" width="100%" viewBox="0 0 800 240" preserveAspectRatio="xMidYMid meet" style="display:block"></svg>
           </div>
-          
+
           <div class="two-chart-section">
             <h3>Seoul 25 Districts — Scatter Positioning <span style="font-size:13px;font-weight:400;color:var(--text-tertiary)">— x: crime rate, y: arrest rate</span></h3>
             <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px;">See where the two selected districts stand among all 25 Seoul districts.</div>
@@ -575,6 +575,31 @@
     }
     svg += `</svg>`;
     container.innerHTML = svg;
+    
+    // 주소 마커 미니맵에도 표시
+    if (typeof savedMarkers !== 'undefined' && savedMarkers.length > 0) {
+      const miniSvg = container.querySelector('svg');
+      if (miniSvg) {
+        savedMarkers.forEach(({ lng, lat, addressName }) => {
+          const x = scaleX(lng);
+          const y = scaleY(lat);
+      
+          const circle = document.createElementNS(NS2, 'circle');
+          circle.setAttribute('cx', x); circle.setAttribute('cy', y);
+          circle.setAttribute('r', '6'); circle.setAttribute('fill', '#3b82f6');
+          circle.setAttribute('stroke', '#ffffff'); circle.setAttribute('stroke-width', '3');
+          miniSvg.appendChild(circle);
+
+          const text = document.createElementNS(NS2, 'text');
+          text.setAttribute('x', x); text.setAttribute('y', String(y - 18));
+          text.setAttribute('text-anchor', 'middle');
+          text.setAttribute('font-size', '11'); text.setAttribute('font-weight', '700');
+          text.setAttribute('fill', '#1a202c');
+          text.textContent = addressName;
+          miniSvg.appendChild(text);
+        });
+      }
+    }
   }
 
   function renderSingleTrendChart(svgId, guA) {
@@ -718,8 +743,12 @@
     function draw(selectedYr) {
       svg.innerHTML = '';
       const pts = allGu.map(gu=>({gu, crime:state.crimeData[gu]?.[selectedYr]?.crime||0, arrest:state.crimeData[gu]?.[selectedYr]?.arrest||0})).filter(p=>p.crime>0);
-      const avgC = pts.reduce((s,p)=>s+p.crime,0)/pts.length;
-      const avgA = pts.reduce((s,p)=>s+p.arrest,0)/pts.length;
+      const allPts = allGu.flatMap(gu => YEARS.map(y => ({
+        crime:  state.crimeData[gu]?.[y]?.crime  || 0,
+        arrest: state.crimeData[gu]?.[y]?.arrest || 0,
+      }))).filter(p => p.crime > 0);
+      const avgC = allPts.reduce((s,p)=>s+p.crime,0)/allPts.length;
+      const avgA = allPts.reduce((s,p)=>s+p.arrest,0)/allPts.length;
       const mx=xP(avgC), my=yP(avgA);
 
       // quadrant backgrounds
