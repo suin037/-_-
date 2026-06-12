@@ -1,12 +1,14 @@
 /* eslint-disable no-undef */
 /* global d3, state, SEOUL_DATA, DONG_DATA, scaleX, scaleY, normalizeDongName, cctvRadiusScale, renderMainMap, closeModal */
 
-/* ============================================================
- * compare_two_jiyun.js  (SPA Sliding Panel + Fixed CSV Parsing)
- * Feature: 
- * 1. Load police station and CCTV data via a robust CSV parser handling quoted fields
- * 2. Single district → detail panel; two districts → comparison panel with slide animation
- * ========================================================== */
+/* ─────────────────────────────────────────────────────────────
+ * compare_two_jiyun.js
+ * Features:
+ *   1. Loads police station and CCTV CSV data via a quoted-field-
+ *      aware CSV parser.
+ *   2. Single district → sliding detail panel (map + trend chart).
+ *   3. Two districts → side-by-side comparison panel with animation.
+ * ───────────────────────────────────────────────────────────── */
 
 (function () {
   'use strict';
@@ -377,6 +379,14 @@
   /* =========================================================
    * 4. Panel content and chart rendering
    * ========================================================= */
+
+  /**
+   * Builds and injects the panel HTML, then calls the relevant
+   * chart rendering functions.
+   *
+   * - guA only  → single district detail view
+   * - guA + guB → two-district comparison view
+   */
   function renderJiyunPanelContent() {
     const panel = document.getElementById('jiyunSidePanel');
     const guA = compareTwoState.guA;
@@ -562,7 +572,7 @@
         renderMiniMap2('twoMapSvgB', guB, 'b');
       });
 
-      // wire up filter events
+      // Re-render crime chart when checkboxes change
       document.querySelectorAll('#crimeFilterList input[type=checkbox]').forEach(cb => {
         cb.onchange = () => {
           renderTwoCrimeChart2(guA, guB, state.year);
@@ -571,6 +581,12 @@
     }
   }
 
+  /**
+   * Returns the list of crime type keys that are currently checked
+   * in the crime-filter panel. Defaults to all types if none checked.
+   *
+   * @returns {string[]} Array of active crime type keys
+   */
   function getSelectedCrimeTypes() {
     const selected = [];
     document.querySelectorAll('#crimeFilterList .crime-filter-item').forEach(item => {
@@ -582,8 +598,21 @@
   }
 
   /* =========================================================
-   * Chart rendering functions — mini-map, scatter, radar, bar (projection fix applied)
+   * 5. Chart rendering: mini-map, trend, scatter, crime bar
    * ========================================================= */
+
+  /**
+   * Renders a mini SVG map for a single district, including:
+   *   - dong (sub-district) boundaries with hover tooltips
+   *   - CCTV density circles (size ∝ cameras/km²)
+   *   - Police station teardrop pins
+   *   - Address markers from savedMarkers (if any)
+   *
+   * @param {string}  containerId - ID of the wrapper element
+   * @param {string}  guName      - District name
+   * @param {string}  slot        - 'a' (blue) or 'b' (orange) color scheme
+   * @param {boolean} isLarge     - Use taller SVG height for single-panel view
+   */
   function renderMiniMap2(containerId, guName, slot, isLarge = false) {
     const container = document.getElementById(containerId);
     const info = SEOUL_DATA.districts[guName];
@@ -759,6 +788,12 @@
     }
   }
 
+  /**
+   * Draws a single-line crime rate trend chart (2021–2024) for one district.
+   *
+   * @param {string} svgId - ID of the target SVG element
+   * @param {string} guA   - District name
+   */
   function renderSingleTrendChart(svgId, guA) {
     const svg = document.getElementById(svgId);
     if (!svg || !state.crimeData) return;
@@ -812,6 +847,13 @@
     });
   }
 
+  /**
+   * Draws overlapping crime rate trend lines for two districts (2021–2024).
+   * guA is rendered in blue, guB in orange.
+   *
+   * @param {string} guA - First district name
+   * @param {string} guB - Second district name
+   */
   function renderTwoTrendChart2(guA, guB) {
     const svg = document.getElementById('twoTrendSvg');
     if (!svg || !state.crimeData) return;
@@ -879,6 +921,15 @@
     });
   }
 
+  /**
+   * Draws a scatter plot of all 25 districts (crime rate vs arrest rate)
+   * for a given year, with the two selected districts highlighted.
+   * Includes a year slider to change the displayed year in the panel.
+   *
+   * @param {string} guA - First selected district
+   * @param {string} guB - Second selected district
+   * @param {string} yr  - Year string ('2021'–'2024')
+   */
   function renderTwoScatterChart(guA, guB, yr) {
     const svg = document.getElementById('twoScatterSvg');
     if (!svg || !state.crimeData) return;
@@ -888,7 +939,7 @@
     const iW = W-ml-mr, iH = H-mt-mb;
     const allGu = Object.keys(SEOUL_DATA.districts);
 
-    // fixed scale across all years
+    // Use a fixed scale across all years for visual consistency
     const allCrime  = allGu.flatMap(gu => YEARS.map(y => state.crimeData[gu]?.[y]?.crime  || 0)).filter(v=>v>0);
     const allArrest = allGu.flatMap(gu => YEARS.map(y => state.crimeData[gu]?.[y]?.arrest || 0)).filter(v=>v>0);
     const minC = Math.min(...allCrime)*0.92,  maxC = Math.max(...allCrime)*1.05;
@@ -963,15 +1014,14 @@
       });
     }
 
-    // initial draw
+    // Initial draw for the current year
     draw(yr);
 
-    // wire up slider (created fresh each time panel opens)
+    // Wire up the year slider — replace element to avoid duplicate listeners
     const slider = document.getElementById('twoScatterYearSlider');
     const label  = document.getElementById('twoScatterYearLabel');
     if (slider) {
       slider.value = yr;
-      // remove previous listener by replacing element
       const newSlider = slider.cloneNode(true);
       slider.parentNode.replaceChild(newSlider, slider);
       newSlider.addEventListener('input', e => {
@@ -982,6 +1032,15 @@
     }
   }
 
+  /**
+   * Draws a radar (spider) chart comparing two districts' crime counts
+   * across all selected crime types for a given year.
+   * Requires at least 3 selected crime types to render.
+   *
+   * @param {string} guA - First district
+   * @param {string} guB - Second district
+   * @param {string} yr  - Year string
+   */
   function renderTwoRadarChart(guA, guB, yr) {
     const svg = document.getElementById('twoRadarSvg');
     if (!svg || !state.crimeData) return; 
@@ -1036,6 +1095,14 @@
 
   
 
+  /**
+   * Draws a side-by-side grouped bar chart comparing incident counts
+   * for each selected crime type between two districts for a given year.
+   *
+   * @param {string} guA - First district (blue bars)
+   * @param {string} guB - Second district (orange bars)
+   * @param {string} yr  - Year string
+   */
   function renderTwoCrimeChart2(guA, guB, yr) {
     const svg = document.getElementById('twoCrimeSvg');
     if (!svg || !state.crimeData) return; 
@@ -1076,10 +1143,10 @@
   }
 
   /* =========================================================
-   * 5. Initialization and async data load
+   * 6. Initialization and async data load
    * ========================================================= */
   waitForData(async () => {
-    await loadExternalData(); 
+    await loadExternalData();
     injectStyles();
     injectHTML();
     setupIntercepts();

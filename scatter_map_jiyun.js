@@ -1,14 +1,19 @@
-/* ============================================================
- *  scatter_map_jiyun.js  (jiyun)
- *  Feature: scatter plot linked to choropleth map
- *   - CSS transform-based dot animation on year transition
- *   - always-on district-name label + collision avoidance
- *   - hover → map highlight  /  click → district modal
- * ========================================================== */
+/* ─────────────────────────────────────────────────────────────
+ * scatter_map_jiyun.js
+ * Feature: scatter plot linked to choropleth map
+ *   - Fixed scale across all years for stable visual comparison
+ *   - CSS-transform / rAF-tween dot animation on year change
+ *   - Always-on district labels with collision avoidance
+ *   - Hover → map highlight / click → district modal
+ * ───────────────────────────────────────────────────────────── */
 (function () {
   'use strict';
   const NS = 'http://www.w3.org/2000/svg';
 
+  /**
+   * Polls until state.crimeData is ready, then fires the callback.
+   * @param {Function} cb
+   */
   function waitForData(cb) {
     if (typeof state !== 'undefined' && state.crimeData) cb();
     else setTimeout(() => waitForData(cb), 100);
@@ -70,7 +75,15 @@
     mapSvg.querySelectorAll('.gu-label').forEach(l => l.classList.remove('scatter-hover-label'));
   }
 
-  /* ── fixed scale across all years ── */
+  /* ── Fixed scale across all years ──────────────────────────── */
+
+  /**
+   * Computes min/max crime and arrest values across ALL districts
+   * and ALL years so the scatter axes remain stable on year change.
+   *
+   * @param {string[]} allGu - Array of all district names
+   * @returns {{ minC, maxC, minA, maxA }}
+   */
   function getFixedScales(allGu) {
     const allYears = Object.keys(state.crimeData[allGu[0]] || {});
     const allCrime  = allGu.flatMap(gu => allYears.map(yr => state.crimeData[gu]?.[yr]?.crime  || 0)).filter(v => v > 0);
@@ -81,17 +94,23 @@
     };
   }
 
-  /* ── label collision avoidance ── */
-  const _FS = 10, _R = 7, _charW = 9.6;
-  const _estW = t => t.length * _charW + 4;
-  const _ov   = (a, b) => !(a.x2<=b.x1||a.x1>=b.x2||a.y2<=b.y1||a.y1>=b.y2);
-  const _inB  = (b, ml, mr, mt, mb, W, H) =>
+  /* ── Label collision-avoidance helpers ─────────────────────── */
+  // Tries up to 10 candidate positions per label (above, below, left,
+  // right, with and without leader lines) and picks the one with the
+  // smallest overlap area against already-placed boxes.
+
+  const _FS   = 10;                             // Font size estimate (px)
+  const _R    = 7;                              // Dot radius (px)
+  const _charW = 9.6;                           // Estimated character width (px)
+  const _estW  = t => t.length * _charW + 4;   // Estimated label width
+  const _ov    = (a, b) => !(a.x2<=b.x1||a.x1>=b.x2||a.y2<=b.y1||a.y1>=b.y2); // bbox overlap test
+  const _inB   = (b, ml, mr, mt, mb, W, H) =>  // True if box stays within chart bounds
     b.x1>=ml-2 && b.x2<=W-mr+2 && b.y1>=mt-2 && b.y2<=H-mb+2;
-  const _box  = (cand, w) => {
+  const _box   = (cand, w) => {                 // Compute bounding box for a candidate position
     const x1 = cand.anchor==='middle' ? cand.tx-w/2 : cand.anchor==='start' ? cand.tx : cand.tx-w;
     return { x1, x2:x1+w, y1:cand.ty-_FS, y2:cand.ty+2 };
   };
-  const _cands = (cx, cy) => ([
+  const _cands = (cx, cy) => ([               // 10 candidate label positions around a dot
     { tx:cx,        ty:cy-_R-7,  anchor:'middle', leader:false },
     { tx:cx,        ty:cy+_R+13, anchor:'middle', leader:false },
     { tx:cx+_R+5,   ty:cy+3.5,   anchor:'start',  leader:false },
@@ -104,7 +123,13 @@
     { tx:cx-_R-6,   ty:cy+18,    anchor:'end',    leader:true  },
   ]);
 
-  /* ── static layer: axes, quadrants, labels ── */
+  /* ── Static layer: axes, quadrant backgrounds, reference lines ── */
+
+  /**
+   * Draws all non-animated elements of the scatter plot (axes, grid,
+   * quadrant backgrounds and labels, average reference lines).
+   * Called on every year change because the average lines shift.
+   */
   function renderStaticLayer(svg, W, H, ml, mr, mt, mb, xP, yP, avgC, avgA, minC, maxC, minA, maxA) {
     const iW = W-ml-mr, iH = H-mt-mb;
     const mx = xP(avgC), my = yP(avgA);
@@ -174,16 +199,22 @@
     });
   }
 
-  /* ── dot layer — DOM created once, position updated on re-render ── */
-  const _dotMap = {}; // gu → { g, circle, glow, lbl, leaderLine }
+  /* ── Dot layer: DOM created once, position updated per render ── */
 
-  // tracks currently brushed districts (set by onBrushUpdate)
-  const _brushedSet = new Set();
+  const _dotMap    = {};       // gu → { g, circle, glow, lbl, leaderLine }
+  const _brushedSet = new Set(); // Districts currently brushed (from brushing_hyewon.js)
+  let   _hoveredGu  = null;    // Currently hovered district (cleared on re-render)
 
-  // currently hovered district (module-scope so a re-render can clear it → no ghost dot)
-  let _hoveredGu = null;
+  /* ── rAF tween for dot position animation ──────────────────── */
 
-  // ---- JS rAF tween for dot position (reliable year-change animation across browsers) ----
+  /**
+   * Smoothly animates each dot (and its label/leader line) from its
+   * current DOM position to a new target position using requestAnimationFrame.
+   * Uses an easeOutCubic easing function.
+   *
+   * @param {Array}  list - Animation descriptors (fromX/Y, toX/Y, etc.)
+   * @param {number} dur  - Duration in milliseconds
+   */
   let _dotAnimRAF = null;
   function _runDotTween(list, dur) {
     if (_dotAnimRAF) cancelAnimationFrame(_dotAnimRAF);
@@ -210,6 +241,10 @@
     _dotAnimRAF = requestAnimationFrame(frame);
   }
 
+  /**
+   * Applies visual styling to all dots based on brush selection state.
+   * Brushed dots are enlarged and colored blue; others are dimmed gray.
+   */
   function applyBrushedStyles() {
     Object.entries(_dotMap).forEach(([gu, d]) => {
       const brushed = _brushedSet.has(gu);
@@ -225,6 +260,10 @@
     });
   }
 
+  /**
+   * Resets all dot styles to their brush-state defaults and hides
+   * the scatter tooltip and any map hover highlight.
+   */
   function resetAllDots() {
     const tooltip = document.getElementById('scatterTooltip');
     applyBrushedStyles();
@@ -232,6 +271,12 @@
     if (tooltip) tooltip.style.display = 'none';
   }
 
+  /**
+   * Creates or updates the SVG dot group for every district point.
+   * New dots are appended once; existing dots are tweened to their
+   * new positions. Also sets up the document-level pointer tracker
+   * for hover interactions (runs only once via svg._jiyunMoveSet).
+   */
   function renderDotsLayer(svg, points, xP, yP, W, H, ml, mr, mt, mb) {
     const tooltip = document.getElementById('scatterTooltip');
 
@@ -240,8 +285,8 @@
       const tooltip = document.getElementById('scatterTooltip');
 
       document.addEventListener('pointermove', function(e) {
-        // among ALL dots stacked under the cursor, pick the one whose center is
-        // nearest the cursor — so a dot hidden behind another is still hoverable
+        // Among all dots stacked under the cursor, pick the nearest center
+        // so a dot hidden behind another remains hoverable.
         const stack = document.elementsFromPoint(e.clientX, e.clientY);
         let newGu = null, _bestD = Infinity;
         for (const node of stack) {
@@ -457,10 +502,17 @@
     });
   }
 
-  /* ── main render function ── */
-  let _staticRendered = false;
-  let _lastScaleKey = '';
+  /* ── Main render function ──────────────────────────────────── */
 
+  let _staticRendered = false; // (reserved for future incremental rendering)
+  let _lastScaleKey   = '';    // (reserved for scale-change detection)
+
+  /**
+   * Full scatter plot render pass.
+   * 1. Clears and redraws the static layer (axes, quadrants, reference lines).
+   * 2. Creates or updates dot DOM elements and runs the position tween.
+   * 3. Re-appends all dots and labels so they sit above the static layer.
+   */
   function renderMainScatterEnhanced() {
     const svg = document.getElementById('mainScatterSvg');
     if (!svg || !state.crimeData) return;
@@ -504,10 +556,11 @@
     });
   }
 
-  // ---- bootstrap ----
+  // ── Bootstrap ─────────────────────────────────────────────
   waitForData(() => {
     injectStyles();
 
+    // Wrap renderMainMap once to tag district paths with data-gu attributes
     if (!window._jiyunMapWrapped && typeof window.renderMainMap === 'function') {
       const origMap = window.renderMainMap;
       window.renderMainMap = function () { origMap.apply(this, arguments); tagGuPaths(); };
@@ -519,12 +572,12 @@
     if (typeof window.renderMainMap === 'function') window.renderMainMap();
     renderMainScatterEnhanced();
 
-    // receive brush selection from brushing_hyewon.js — keeps highlighted dots fixed
+    // Receive brush selection from brushing_hyewon.js and sync dot styles
     window.onBrushUpdate = function(brushedGus) {
       _brushedSet.clear();
       brushedGus.forEach(gu => _brushedSet.add(gu));
 
-      // if dots not yet rendered, trigger a render first
+      // If dots haven't been created yet, trigger a full render first
       if (Object.keys(_dotMap).length === 0) {
         renderMainScatterEnhanced();
         return;

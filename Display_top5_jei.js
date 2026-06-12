@@ -1,4 +1,10 @@
-// 📦 2021년~2024년 TOP 5 데이터 주머니
+// ─────────────────────────────────────────────────────────────
+// Display_top5_jei.js
+// Renders a horizontal bar chart showing the Top 5 safest
+// Seoul districts for a given year (2021–2024) in the sidebar.
+// ─────────────────────────────────────────────────────────────
+
+// Static dataset: top-5 safety rankings per year (2021–2024)
 const SAFETY_RANK_DATA = {
     "2024": [
         { rank: 1, name: "성북구", score: 74.38 },
@@ -30,18 +36,23 @@ const SAFETY_RANK_DATA = {
     ]
 };
 
-// 🏆 선택된 연도의 데이터를 막대그래프로 그려주는 함수
+/**
+ * Renders a horizontal bar chart for the top-5 safety ranking
+ * of the given year into the #sidebar-rank element.
+ *
+ * @param {string} selectedYear - A year string ("2021"–"2024")
+ */
 function showTop5Chart(selectedYear) {
     const currentRankList = SAFETY_RANK_DATA[selectedYear];
-    if (!currentRankList) return; // 데이터가 없는 연도면 패스
+    if (!currentRankList) return; // Skip if no data for this year
 
-    // 1. 타이틀과 호버 툴팁(점수 계산식) 구조
+    // ── Section header + score formula tooltip ──────────────────
     let chartHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0 10px 0;">
             <h3 style="margin: 0; color: var(--text-primary); font-size: 14px; font-weight: 700;">
                 🛡️ ${selectedYear} Safety TOP 5
             </h3>
-            
+
             <div class="suin-tooltip" style="position: relative; cursor: pointer; font-size: 11px; color: var(--text-secondary); text-decoration: underline;">
                 Score formula ℹ️
                 <div class="suin-tooltip-text" style="
@@ -69,7 +80,7 @@ function showTop5Chart(selectedYear) {
         </div>
     `;
 
-    // 2. 막대그래프 빌드업
+    // ── Bar chart rows ───────────────────────────────────────────
     chartHTML += `<div style="display: flex; flex-direction: column; gap: 12px; background: var(--bg-tertiary); padding: 15px; border-radius: 8px; border: 1.5px solid var(--border);">`;
 
     currentRankList.forEach((item) => {
@@ -78,7 +89,7 @@ function showTop5Chart(selectedYear) {
                 <div style="width: 65px; font-size: 12px; font-weight: bold; color: var(--text-primary);">
                     #${item.rank} ${item.name}
                 </div>
-                
+
                 <div style="flex-grow: 1; background: rgba(0,0,0,0.05); height: 20px; border-radius: 10px; overflow: hidden; margin-left: 8px; position: relative;">
                     <div style="width: ${item.score}%; background: linear-gradient(90deg, #3498db, #2ecc71); height: 100%; border-radius: 10px; transition: width 0.4s ease-in-out; display: flex; align-items: center; justify-content: flex-end;">
                         <span style="color: white; font-size: 10px; font-weight: bold; margin-right: 8px; white-space: nowrap;">
@@ -93,10 +104,10 @@ function showTop5Chart(selectedYear) {
     chartHTML += `</div>`;
     document.getElementById("sidebar-rank").innerHTML = chartHTML;
 
-    // 3. 마우스 호버 이벤트 제어
+    // ── Tooltip hover events ─────────────────────────────────────
     const tooltipContainer = document.querySelector('.suin-tooltip');
     const tooltipText = document.querySelector('.suin-tooltip-text');
-    
+
     if (tooltipContainer && tooltipText) {
         tooltipContainer.addEventListener('mouseenter', () => {
             tooltipText.style.visibility = 'visible';
@@ -109,23 +120,13 @@ function showTop5Chart(selectedYear) {
     }
 }
 
-// 🔌 친구들 데이터 시스템과 연동하는 부분
+// ── Bootstrap: wait for shared data, then render and bind year slider ──
 waitForData(() => {
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) {
-        const rankBlock = document.createElement('div');
-        rankBlock.id = 'sidebar-rank';
-        rankBlock.className = 'control-block';
-        document.getElementById('sidebar-rank').appendChild(rankBlock);
-    }
+    // Show the most recent year by default; fall back to 2024
+    const initialYear = (window.state && state.year) ? state.year : "2024";
+    showTop5Chart(initialYear);
 
-    // ⭐ 처음 켰을 때는 데이터의 가장 최신 연도인 2024년을 기본값으로 띄우기
-    if (window.state && state.year) {
-        showTop5Chart(state.year);
-    } else {
-        showTop5Chart("2024");
-    }
-
+    // Re-render whenever the year slider changes
     const slider = document.getElementById('yearSlider');
     if (slider) {
         slider.addEventListener('input', (e) => {

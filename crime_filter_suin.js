@@ -1,9 +1,15 @@
-setTimeout(() => {
-  console.log(state.crimeData['강남구']['2021']);
-}, 5000);
+// ─────────────────────────────────────────────────────────────
+// crime_filter_suin.js
+// Adds a crime-type filter UI to the sidebar and re-renders
+// the choropleth map based on the selected crime category.
+// ─────────────────────────────────────────────────────────────
 
-
-// 데이터 로드 완료 후 실행되도록 대기
+/**
+ * Polls until state.crimeData is ready, then calls the callback.
+ * Used by all modules that depend on the shared data store.
+ *
+ * @param {Function} callback - Function to call once data is loaded
+ */
 function waitForData(callback) {
   if (state.crimeData) {
     callback();
@@ -12,28 +18,31 @@ function waitForData(callback) {
   }
 }
 
-// 범죄 유형 필터 상태
+// Tracks the currently selected crime type filter.
+// null = show all crimes (aggregate view).
 const crimeFilterState = {
-  selectedType: null // null이면 전체(기존 방식), 아니면 'murder','robbery','theft','violence','rape'
+  selectedType: null // one of: null | 'murder' | 'robbery' | 'theft' | 'violence' | 'rape'
 };
 
-// 변경 
+// Human-readable labels for each crime type key
 const CRIME_LABEL = {
-  murder: 'Murder',
-  robbery: 'Robbery',
-  theft: 'Theft',
+  murder:   'Murder',
+  robbery:  'Robbery',
+  theft:    'Theft',
   violence: 'Violence',
-  rape: 'Sexual Assault'
+  rape:     'Sexual Assault'
 };
 
-// 사이드바에 범죄 유형 필터 UI 추가
+/**
+ * Injects the crime-type filter button group into the sidebar.
+ * Buttons update crimeFilterState and trigger a map re-render.
+ */
 function injectCrimeFilterUI() {
   const sidebar = document.querySelector('.sidebar');
   if (!sidebar) return;
 
   const block = document.createElement('div');
   block.className = 'control-block';
-  // 변경 후
   block.innerHTML = `
     <div class="control-label">Crime Type Filter</div>
     <div id="crimeTypeFilter" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px;">
@@ -53,33 +62,38 @@ function injectCrimeFilterUI() {
   `;
   document.getElementById('sidebar-crime-filter').appendChild(block);
 
-  // Returns the highlight colors for the active filter button, matching the
-  // current metric: green for arrest-rate view, red for crime-rate view.
+  /**
+   * Returns the highlight colors for the active filter button,
+   * adapting to the current metric (crime = red, arrest = green).
+   */
   function activeFilterColors() {
     return state.metric === 'arrest'
       ? { bg: 'var(--accent-arrest-light)', border: 'var(--accent-arrest)' }
       : { bg: 'var(--accent-crime-light)',  border: 'var(--accent-crime)'  };
   }
 
-  // Apply the metric-aware highlight to whichever filter button is active.
+  /**
+   * Re-applies metric-aware highlight colors to the active filter button
+   * and resets all inactive buttons to their default style.
+   */
   function refreshFilterButtonColors() {
     const filter = document.getElementById('crimeTypeFilter');
     if (!filter) return;
     const colors = activeFilterColors();
     filter.querySelectorAll('.crime-filter-btn').forEach(b => {
       if (b.classList.contains('active')) {
-        b.style.background = colors.bg;
-        b.style.borderColor = colors.border;
-        b.style.fontWeight = '700';
+        b.style.background    = colors.bg;
+        b.style.borderColor   = colors.border;
+        b.style.fontWeight    = '700';
       } else {
-        b.style.background = 'var(--bg-tertiary)';
-        b.style.borderColor = 'var(--border)';
-        b.style.fontWeight = '400';
+        b.style.background    = 'var(--bg-tertiary)';
+        b.style.borderColor   = 'var(--border)';
+        b.style.fontWeight    = '400';
       }
     });
   }
 
-  // Button click event
+  // Update filter state and re-render map on button click
   block.querySelectorAll('.crime-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       block.querySelectorAll('.crime-filter-btn').forEach(b => b.classList.remove('active'));
@@ -92,49 +106,61 @@ function injectCrimeFilterUI() {
     });
   });
 
-  // Re-color the active button whenever the user switches the crime/arrest metric.
+  // Re-color the active button whenever the crime/arrest metric toggle changes.
+  // setTimeout(0) ensures state.metric is already updated by the original handler.
   document.querySelectorAll('.metric-toggle button').forEach(mb => {
     mb.addEventListener('click', () => {
-      // Defer so state.metric is updated by the original handler first.
       setTimeout(refreshFilterButtonColors, 0);
     });
   });
 }
 
-// 선택된 범죄 유형 기준으로 색 계산
+/**
+ * Computes the fill color for a district based on the active crime filter
+ * and the current metric (crime rate or arrest rate).
+ *
+ * @param {string} guName - District name (e.g. "강남구")
+ * @returns {string} An rgba color string
+ */
 function getColorByType(guName) {
-  const year = state.year;
+  const year      = state.year;
   const crimeData = state.crimeData;
 
+  // Return a light default color if data is missing
   if (!crimeData || !crimeData[guName] || !crimeData[guName][year]) {
     return 'rgba(230, 57, 70, 0.15)';
   }
 
+  // Aggregate mode: use the shared getColor helper
   if (!crimeFilterState.selectedType) {
-    // 전체: 기존 방식 그대로
     const val = state.metric === 'crime'
       ? crimeData[guName][year].crime
       : crimeData[guName][year].arrest;
     return getColor(val, state.metric);
   }
-  // 범죄율(10만명당) 기준으로 색 계산
+
+  // Per-type mode: normalize against the max value across all districts
   const dataKey = state.metric === 'arrest' ? 'arrest_by_type' : 'crimeRate';
 
   const allValues = Object.keys(crimeData)
     .filter(g => crimeData[g][year] && crimeData[g][year][dataKey])
     .map(g => crimeData[g][year][dataKey][crimeFilterState.selectedType] || 0);
 
-  const max = Math.max(...allValues);
-  const val = crimeData[guName][year][dataKey][crimeFilterState.selectedType] || 0;
+  const max       = Math.max(...allValues);
+  const val       = crimeData[guName][year][dataKey][crimeFilterState.selectedType] || 0;
   const intensity = max > 0 ? val / max : 0;
 
   if (state.metric === 'arrest') {
     return `rgba(6, 167, 125, ${0.1 + intensity * 0.9})`;
-    }
-    return `rgba(230, 57, 70, ${0.1 + intensity * 0.9})`;
+  }
+  return `rgba(230, 57, 70, ${0.1 + intensity * 0.9})`;
 }
 
-// 필터 적용된 메인맵 렌더링 (기존 renderMainMap 확장)
+/**
+ * Draws all district paths onto the main SVG map using the active
+ * crime filter. Also re-renders address markers if available.
+ * This function replaces the original renderMainMap.
+ */
 function renderMainMapWithFilter() {
   const mapSvg = document.getElementById('seoulMap');
   if (!mapSvg) return;
@@ -144,15 +170,16 @@ function renderMainMapWithFilter() {
   mapSvg.innerHTML = '';
 
   Object.entries(SEOUL_DATA.districts).forEach(([guName, info]) => {
+    // Draw district path
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', info.d);
-    path.setAttribute('fill', getColorByType(guName));
-    path.setAttribute('stroke', '#ffffff');
+    path.setAttribute('d',            info.d);
+    path.setAttribute('fill',         getColorByType(guName));
+    path.setAttribute('stroke',       '#ffffff');
     path.setAttribute('stroke-width', '2.5');
 
     let cls = 'gu-path';
-    if (state.selectedGu === guName) cls += ' selected';
-    else if (state.selectedGu) cls += ' dimmed';
+    if      (state.selectedGu === guName) cls += ' selected';
+    else if (state.selectedGu)            cls += ' dimmed';
     path.setAttribute('class', cls);
 
     path.addEventListener('click', (e) => {
@@ -160,13 +187,16 @@ function renderMainMapWithFilter() {
       selectGu(guName);
     });
 
+    // Tooltip title shown on hover
     const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-    const typeLabel = crimeFilterState.selectedType ? CRIME_LABEL[crimeFilterState.selectedType] : (state.metric === 'crime' ? 'Crime rate' : 'Arrest rate');
+    const typeLabel = crimeFilterState.selectedType
+      ? CRIME_LABEL[crimeFilterState.selectedType]
+      : (state.metric === 'crime' ? 'Crime rate' : 'Arrest rate');
     title.textContent = `${guName} · ${typeLabel}`;
     path.appendChild(title);
     mapSvg.appendChild(path);
 
-    // 구 라벨
+    // District name label
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.setAttribute('x', info.label_x);
     text.setAttribute('y', info.label_y);
@@ -174,17 +204,21 @@ function renderMainMapWithFilter() {
     text.textContent = guName;
     mapSvg.appendChild(text);
   });
-  // 주소 마커 다시 그리기
+
+  // Re-draw address markers on top of the updated map
   if (typeof renderAllMarkers === 'function') renderAllMarkers();
 }
 
-// 기존 renderMainMap을 필터 버전으로 교체
+/**
+ * Replaces the global renderMainMap with the filter-aware version
+ * so all callers automatically benefit from the crime filter.
+ */
 function overrideRenderMainMap() {
   window._originalRenderMainMap = renderMainMap;
   window.renderMainMap = renderMainMapWithFilter;
 }
 
-// 초기화
+// ── Bootstrap ────────────────────────────────────────────────
 waitForData(() => {
   injectCrimeFilterUI();
   overrideRenderMainMap();

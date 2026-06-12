@@ -1,42 +1,50 @@
 /* eslint-disable no-undef */
 /* global d3, SEOUL_DATA, state */
 
-/**
+/* ─────────────────────────────────────────────────────────────
  * brushing_hyewon.js
- * Smooth paintbrush-style multi-district selection plugin
- * (0 selected: 25-district dual ranking chart / 1 selected: pie chart / 2+ selected: dancing bar chart)
- */
+ * Paintbrush-style multi-district selection plugin.
+ *
+ * Chart modes based on selected district count:
+ *   0 selected  → dual bar chart for all 25 districts
+ *   1 selected  → pie chart (crime composition)
+ *   2+ selected → stacked bar chart with baseline-shift "dance"
+ * ───────────────────────────────────────────────────────────── */
 
 (function() {
-  console.log("🚀 Bushing Plugin (Tooltip & Perfect Error-Free Mode) Loading...");
 
-  const checkInterval = setInterval(() => {
-    if (typeof state !== 'undefined' && state.crimeData && document.querySelector('.map-area')) {
-      clearInterval(checkInterval);
-      initPlugin();
-    }
-  }, 300);
-
-  const LINE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
-  const CRIME_TYPES = ['murder', 'robbery', 'theft', 'violence', 'rape'];
+  // ── Constants ──────────────────────────────────────────────
+  const LINE_COLORS  = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+  const CRIME_TYPES  = ['murder', 'robbery', 'theft', 'violence', 'rape'];
   const CRIME_LABELS = { murder: 'Murder', robbery: 'Robbery', theft: 'Theft', violence: 'Violence', rape: 'Sexual Assault' };
   const CRIME_COLORS = { murder: '#e63946', robbery: '#f97316', theft: '#eab308', violence: '#06a77d', rape: '#3b82f6' };
 
-  let brushedGus = [];
-  let isPainting = false;
-  let isDragged = false; 
-  let currentSortKey = 'total'; 
+  // ── Module state ────────────────────────────────────────────
+  let brushedGus    = [];       // Currently selected district names
+  let isPainting    = false;    // True while the pointer is held down on the map
+  let isDragged     = false;    // True if the pointer moved after pointerdown (drag vs click)
+  let currentSortKey = 'total'; // Active sort key for the stacked bar chart
 
+  /**
+   * Returns true when the compare-two panel (jiyun mode) is active.
+   * In that state, brush interactions are suppressed so clicks are
+   * passed through to the district comparison handler instead.
+   */
   function isJiyunMode() {
     const btn = document.getElementById('startCompareTwoBtn');
     return btn && btn.classList.contains('selecting');
   }
 
+  /**
+   * Initialises the plugin once shared data and the map DOM are ready.
+   * Wraps window.selectGu to intercept single-click district selection.
+   */
   function initPlugin() {
     const _originalSelectGu = window.selectGu;
     window.selectGu = function(guName) {
-      if (isDragged) return; 
+      if (isDragged) return; // Ignore if the user was drag-brushing
       if (isJiyunMode()) {
+        // Let the comparison plugin handle the click
         if (typeof _originalSelectGu === 'function') _originalSelectGu(guName);
       } else {
         brushedGus = [guName];
@@ -49,38 +57,51 @@
     injectUI();
     setupPaintingEvents();
 
-    updateCharts(); 
+    updateCharts(); // Draw the default all-districts view on load
 
+    // Re-sync highlight and charts whenever the map SVG is re-rendered
     const observer = new MutationObserver(() => {
       if (!isJiyunMode()) {
-        highlightMap(); 
-        updateCharts();  
+        highlightMap();
+        updateCharts();
       }
     });
     observer.observe(document.getElementById('seoulMap'), { childList: true });
   }
 
+  // ── Polling bootstrap: wait until data + DOM are ready ─────
+  const checkInterval = setInterval(() => {
+    if (typeof state !== 'undefined' && state.crimeData && document.querySelector('.map-area')) {
+      clearInterval(checkInterval);
+      initPlugin();
+    }
+  }, 300);
+
+  // ── CSS injection ───────────────────────────────────────────
+
+  /** Appends all plugin-specific styles to the document head. */
   function injectCSS() {
     const style = document.createElement('style');
     style.innerHTML = `
       #comp-container { margin-top: 24px; animation: fadeIn 0.4s ease; padding: 24px; display: block; }
       .comp-line { fill: none; stroke-width: 3.5px; stroke-linecap: round; stroke-linejoin: round; }
       .comp-dot { stroke: var(--bg-card); stroke-width: 2px; cursor: pointer; }
-      
+
+      /* Disable text selection and default touch scrolling on the map */
       #seoulMap { user-select: none; -webkit-user-select: none; touch-action: none; }
       #seoulMap .gu-path { cursor: pointer; transition: fill 0.15s ease, filter 0.15s ease; }
-      
+
       .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 16px; }
       .sub-chart-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-      
+
       .legend-btn { cursor: pointer; transition: opacity 0.2s, transform 0.1s; display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--text-secondary); padding: 4px 6px; border-radius: 4px; }
       .legend-btn:hover { opacity: 1 !important; transform: translateY(-1px); background: var(--bg-tertiary); }
       .legend-btn.active { opacity: 1; background: var(--bg-tertiary); color: var(--text-primary); }
-      
-      /* prevent fly-in animation */
+
+      /* Suppress D3 entrance animations on bar/tick elements */
       #svgBar .tick, #svgBar rect, #svgAll .tick, #svgAll rect { transition: none !important; }
-      
-      /* 💡 마우스 호버 시 나타날 툴팁 디자인 추가 */
+
+      /* Hover tooltip for the line chart */
       .d3-custom-tooltip { position: absolute; background: rgba(15, 23, 42, 0.85); color: white; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15); backdrop-filter: blur(4px); }
       .d3-tooltip-title { font-size: 11px; color: #94a3b8; margin-bottom: 2px; }
 
@@ -89,6 +110,13 @@
     document.head.appendChild(style);
   }
 
+  // ── DOM injection ───────────────────────────────────────────
+
+  /**
+   * Inserts the #comp-container chart section below the scatter plot.
+   * Contains the all-districts dual bar chart and the per-selection
+   * line + pie/bar chart grid.
+   */
   function injectUI() {
     const mapArea = document.querySelector('.map-area');
     const compDiv = document.createElement('div');
@@ -130,11 +158,20 @@
         </div>
       </div>
     `;
-    // 변경 후 (막대그래프를 scatter-section 다음에 삽입)
+    // Insert the chart container directly after the scatter section
     const scatterSection = document.querySelector('.scatter-section');
     mapArea.parentNode.insertBefore(compDiv, scatterSection.nextSibling);
   }
 
+  // ── Brush / painting interaction ────────────────────────────
+
+  /**
+   * Attaches pointer events to the map SVG for drag-brush selection.
+   * - pointerdown on a district: start painting, select that district
+   * - pointermove (while painting): add hovered districts to selection
+   * - pointerup: end painting; reset isDragged after a short delay
+   *   so the selectGu wrapper can distinguish drag from click.
+   */
   function setupPaintingEvents() {
     const mapSvg = document.getElementById('seoulMap');
 
@@ -149,6 +186,7 @@
         highlightMap();
         updateCharts();
       } else {
+        // Click on empty map area: deselect all districts
         brushedGus = [];
         highlightMap();
         updateCharts();
@@ -178,6 +216,16 @@
     });
   }
 
+  // ── Map helpers ─────────────────────────────────────────────
+
+  /**
+   * Extracts the district name from a <path> element by reading its
+   * <title> child (format: "구이름 · metric").
+   * Falls back to matching the path's index against SEOUL_DATA.districts.
+   *
+   * @param {Element} path - A .gu-path SVG element
+   * @returns {string|null} District name, or null if not found
+   */
   function getGuNameFromPath(path) {
     const titleEl = path.querySelector('title');
     if (titleEl) {
@@ -191,6 +239,11 @@
     return null;
   }
 
+  /**
+   * Applies selected/dimmed CSS classes to map paths and labels
+   * based on the current brushedGus array.
+   * Also notifies scatter_map_jiyun.js via window.onBrushUpdate.
+   */
   function highlightMap() {
     if (typeof window.onBrushUpdate === 'function') window.onBrushUpdate(brushedGus.slice());
 
@@ -218,10 +271,18 @@
     });
   }
 
+  // ── Chart routing ────────────────────────────────────────────
+
+  /**
+   * Hides the original per-district chart section and renders the
+   * correct brushing chart based on selection count:
+   *   0 → all-districts dual bar chart
+   *   1 → line chart + pie chart
+   *   2+ → line chart + stacked bar chart
+   */
   function updateCharts() {
-    const originalChart = document.getElementById('chartTitle')?.closest('.chart-section'); 
-    
-    if (originalChart) originalChart.style.display = 'none'; 
+    const originalChart = document.getElementById('chartTitle')?.closest('.chart-section');
+    if (originalChart) originalChart.style.display = 'none'; // Hide original single-district chart
     
     const compGrid = document.getElementById('comp-grid');
     const allWrapper = document.getElementById('all-districts-wrapper');
@@ -251,7 +312,13 @@
     }
   }
 
-  // 📊 0 selected: 25-district crime/arrest-rate dual ranking chart
+  // ── Chart: all-districts dual bar (0 selected) ──────────────
+
+  /**
+   * Draws side-by-side bar charts for all 25 Seoul districts,
+   * sorted by crime rate (left) and arrest rate (right).
+   * A dashed line marks the average value on each chart.
+   */
   function drawAllDistrictsChart() {
     const year = state.year;
     const allGus = Object.keys(SEOUL_DATA.districts);
@@ -264,20 +331,30 @@
 
     const compTitle = document.getElementById('comp-title');
     const subtitle = document.getElementById('comp-subtitle');
-    compTitle.textContent = `Crime Data Ranking Across Seoul's 25 Districts`;
-    subtitle.textContent = `(${year}) dashed line = average`;
+    compTitle.textContent = `Safety Ranking Across Seoul's 25 Districts`;
+    subtitle.textContent = `(${year})  ▌ Crime Rate  vs  ▌ Arrest Rate — dashed line = average`;
 
     const avgCrime  = d3.mean(barData, d => d.crime);
     const avgArrest = d3.mean(barData, d => d.arrest);
 
-    // ── 공통 설정 ──────────────────────────────────────────
+    // ── Shared layout constants ─────────────────────────────────
     const W = 680, H = 460;
     const margin = { top: 36, right: 30, bottom: 110, left: 45 };
     const innerW = W - margin.left - margin.right;
     const innerH = H - margin.top  - margin.bottom;
     const t = d3.transition().duration(600).ease(d3.easeCubicOut);
 
-    // ── 단일 차트 그리기 헬퍼 ──────────────────────────────
+    // ── Single-chart drawing helper ─────────────────────────────
+    /**
+     * Renders one bar chart into the specified SVG element.
+     *
+     * @param {string} svgId    - ID of the target SVG element
+     * @param {Array}  data     - Array of {gu, crime, arrest} objects
+     * @param {string} valueKey - Data key to plot ('crime' or 'arrest')
+     * @param {string} color    - Bar fill color
+     * @param {number} avgVal   - Average value (for the dashed reference line)
+     * @param {string} label    - Axis label text (unused, kept for clarity)
+     */
     function drawSingle(svgId, data, valueKey, color, avgVal, label) {
       const svg = d3.select('#' + svgId);
       svg.selectAll('*').remove();
@@ -296,7 +373,7 @@
 
       const avgY = yScale(avgVal);
 
-      // 격자선
+      // Grid lines
       svg.selectAll('.grid-line')
         .data(yScale.ticks(5))
         .enter().append('line')
@@ -306,7 +383,7 @@
         .attr('stroke-dasharray', '3,3')
         .attr('stroke-width', 1);
 
-      // Y 축 눈금
+      // Y-axis tick labels
       svg.selectAll('.y-tick')
         .data(yScale.ticks(5))
         .enter().append('text')
@@ -317,7 +394,7 @@
         .attr('fill', 'var(--text-tertiary)')
         .text(d => valueKey === 'arrest' ? d.toFixed(0) + '%' : Math.round(d));
 
-      // 막대
+      // Bars
       svg.selectAll('.bar')
         .data(sorted)
         .enter().append('rect')
@@ -333,7 +410,7 @@
         .attr('y', d => yScale(d[valueKey]))
         .attr('height', d => Math.max(0, (H - margin.bottom) - yScale(d[valueKey])));
 
-      // 평균선 (점선)
+      // Dashed average reference line
       svg.append('line')
         .attr('x1', margin.left).attr('x2', W - margin.right)
         .attr('y1', avgY).attr('y2', avgY)
@@ -344,7 +421,7 @@
         .transition(t)
         .attr('opacity', 1);
 
-      // 평균선 레이블
+      // "avg" label at the right end of the reference line
       svg.append('text')
         .attr('x', W - margin.right + 2)
         .attr('y', avgY + 4)
@@ -356,7 +433,7 @@
         .transition(t)
         .attr('opacity', 1);
 
-      // 평균값 텍스트
+      // Numeric average value above the reference line
       svg.append('text')
         .attr('x', margin.left + 4)
         .attr('y', avgY - 5)
@@ -367,8 +444,7 @@
         .transition(t)
         .attr('opacity', 1);
 
-      // X 축 구 이름
-      // 변경 후
+      // Rotated X-axis district name labels
       svg.selectAll('.x-label')
         .data(sorted)
         .enter().append('text')
@@ -387,14 +463,20 @@
     drawSingle('svgArrest', barData, 'arrest', '#06a77d', avgArrest, 'Arrest Rate');
   }
 
-  // 📈 left (1+ selected): line chart 
+  // ── Chart: line chart (1+ selected, left panel) ─────────────
+
+  /**
+   * Draws a multi-line chart showing the arrest-rate/crime-rate ratio
+   * trend (2021–2024) for each selected district.
+   * Each dot shows a tooltip on hover via a document-level pointermove listener.
+   */
   function drawLineChart() {
     const svg = d3.select('#svgLine');
     const width = 400, height = 260; 
     const margin = { top: 20, right: 40, bottom: 30, left: 40 }; 
     const years = ['2021', '2022', '2023', '2024'];
 
-    // 💡 마우스 호버 툴팁 엘리먼트 생성 (Body 텍스트 최상단에 싱글톤으로 존재)
+    // Create a singleton tooltip element at the body level
     let tooltip = d3.select('.d3-custom-tooltip');
     if (tooltip.empty()) {
       tooltip = d3.select('body').append('div').attr('class', 'd3-custom-tooltip');
@@ -440,31 +522,32 @@
     chartData.forEach(series => {
       svg.append('path').datum(series.values).attr('class', 'comp-line').attr('d', lineGen).attr('stroke', series.color);
       
-      // 💡 툴팁 마우스 이벤트 추가
+      // Tooltip mouse events for each dot
       const dots = svg.selectAll('.cd-' + series.index).data(series.values).enter().append('circle')
         .attr('class', 'comp-dot')
         .attr('cx', d => xScale(d.year))
         .attr('cy', d => yScale(d.value))
         .attr('r', 4.5)
         .attr('fill', series.color);
-        
+
       dots.on('mouseover', function(event, d) {
-          const datum = d || event; // D3 버전에 따른 안전한 호환
+          // D3 v5/v6 compatibility: datum may arrive as second arg or via d3.event
+          const datum = d || event;
           const e = d ? event : d3.event;
-          
-          d3.select(this).transition().duration(200).attr('r', 7); // 점이 커지는 효과
+
+          d3.select(this).transition().duration(200).attr('r', 7); // Enlarge dot on hover
           tooltip.style('opacity', 1)
                  .html(`<div class="d3-tooltip-title">${series.gu} (${datum.year})</div><div style="color: ${series.color};">Ratio: ${datum.value.toFixed(4)}</div>`)
                  .style('left', (e.pageX + 15) + 'px')
-                 .style('top', (e.pageY - 28) + 'px');
+                 .style('top',  (e.pageY - 28) + 'px');
       })
       .on('mousemove', function(event, d) {
           const e = d ? event : d3.event;
           tooltip.style('left', (e.pageX + 15) + 'px')
-                 .style('top', (e.pageY - 28) + 'px');
+                 .style('top',  (e.pageY - 28) + 'px');
       })
       .on('mouseout', function() {
-          d3.select(this).transition().duration(200).attr('r', 4.5); // 원래 크기로 복구
+          d3.select(this).transition().duration(200).attr('r', 4.5); // Restore original size
           tooltip.style('opacity', 0);
       });
     });
@@ -474,7 +557,12 @@
     ).join('');
   }
 
-  // 📊 right (1 selected): pie chart
+  // ── Chart: pie chart (1 selected, right panel) ──────────────
+
+  /**
+   * Draws a pie chart showing the 2021–2024 cumulative breakdown of
+   * five major crime types for the single selected district.
+   */
   function drawPieChart() {
     const svg = d3.select('#svgBar');
     svg.selectAll('*').remove();
@@ -546,7 +634,14 @@
       .style('text-shadow', '0px 1px 3px rgba(0,0,0,0.5)');
   }
 
-  // 📊 right (2+ selected): baseline-shift dancing bar chart
+  // ── Chart: stacked bar chart (2+ selected, right panel) ─────
+
+  /**
+   * Draws a stacked bar chart showing cumulative crime counts
+   * (2021–2024) for each selected district.
+   * Clicking a legend item or a bar segment "dances" that crime type
+   * to the baseline, enabling visual comparison across districts.
+   */
   function drawStackedBarChart() {
     const svg = d3.select('#svgBar');
     
@@ -583,6 +678,14 @@
 
     const xScale = d3.scaleBand().domain(barData.map(d => d.gu)).range([margin.left, width - margin.right]).padding(0.35); 
     
+    /**
+     * Computes the y-offset for a crime key so that the selected key
+     * aligns to the baseline (y=0), enabling the "dance" effect.
+     *
+     * @param {Object} d   - Bar datum
+     * @param {string} key - Crime type key
+     * @returns {number} Cumulative offset of all types before `key`
+     */
     function getOffset(d, key) {
       if (key === 'total') return 0;
       let offset = 0;
@@ -590,7 +693,7 @@
         if (k === key) break;
         offset += d[k] || 0;
       }
-      return offset; 
+      return offset;
     }
 
     const minVal = d3.min(barData, d => 0 - getOffset(d, currentSortKey));
@@ -653,7 +756,7 @@
     rects.selectAll('title').remove();
     rects.append('title').text(function(d) {
       const key = d3.select(this.parentNode).datum().key;
-      return `${d.data.gu} [${CRIME_LABELS[key]}]: ${d[1] - d[0]} cases`; 
+      return `${d.data.gu} [${CRIME_LABELS[key]}]: ${d[1] - d[0]} cases`;
     });
 
     const legendBar = document.getElementById('legend-bar');
@@ -671,9 +774,15 @@
       return d3.select(this).attr('data-key') === currentSortKey;
     });
 
+    /**
+     * Updates the sort key and redraws the chart so the chosen
+     * crime type dances to the baseline.
+     *
+     * @param {string} crimeKey - Crime type key or 'total'
+     */
     function danceToBaseline(crimeKey) {
-      currentSortKey = crimeKey; 
-      drawStackedBarChart();     
+      currentSortKey = crimeKey;
+      drawStackedBarChart();
     }
 
     d3.selectAll('.legend-btn').on('click', function() {
